@@ -41,22 +41,27 @@
 <div class="tools" id="tools"></div>
 <div class="act"><button class="undo" id="undo">↶ تراجع</button><button class="clear" id="clear">امسح الكل</button></div>
 <p class="msg" id="msg">الرسمة تطلع على التلفزيون وأنت ترسم.</p>
-<script src="secrets.js?v=1795693361"></script>
-<script src="mqtt.min.js?v=1795693361"></script>
+<script src="secrets.js?v=1795694254"></script>
+<script src="mqtt.min.js?v=1795694254"></script>
 <script>
 (function () {
   // الرابط: draw.html#<كود الغرفة>/<رقم السؤال>  أو  #<الكود>/w.<الكلمة base64url>
   const parts = (location.hash || '').slice(1).split('/'), room = (parts[0] || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase(), ref = parts.slice(1).join('/');
   const b64d = (s) => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; const bin = atob(s); return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))); };
-  let word = '', qid = ref;
-  try { if (ref.startsWith('w.')) { word = b64d(ref.slice(2)); } else { const d = (window.S || {})[ref]; word = d ? d.w : ''; } } catch (e) {}
+  const LINK = window.TK_LINK; // داخل كلود
+  let word = LINK ? LINK.word : '', qid = LINK ? LINK.ref : ref;
+  if (!LINK) try { if (ref.startsWith('w.')) { word = b64d(ref.slice(2)); } else { const d = (window.S || {})[ref]; word = d ? d.w : ''; } } catch (e) {}
   document.getElementById('w').textContent = word || '—';
   document.getElementById('hideW').onclick = (e) => { const w = document.getElementById('word'); w.classList.toggle('hidden'); e.target.textContent = w.classList.contains('hidden') ? 'اظهرها' : 'خبّها'; };
 
   // ---- الاتصال بالتلفزيون
   const dot = document.getElementById('dot'), msg = document.getElementById('msg');
   let pub = () => {};
-  if (room && window.mqtt) {
+  if (LINK) {
+    LINK.onConn((c) => dot.classList.toggle('on', c));
+    LINK.onState((s) => { if (!word && s && s.draw && s.draw.q === qid) { word = s.draw.w; document.getElementById('w').textContent = word; } });
+    pub = (m) => { m.q = qid; LINK.send('draw', m); };
+  } else if (room && window.mqtt) {
     const T = 'tirakkad-v1/' + room + '/';
     const cl = mqtt.connect('wss://broker.emqx.io:8084/mqtt', { clientId: 'draw-' + room + '-' + Math.random().toString(36).slice(2, 7), clean: true, reconnectPeriod: 2000, connectTimeout: 8000 });
     cl.on('connect', () => dot.classList.add('on'));

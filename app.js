@@ -272,8 +272,46 @@
     else if (a === 'reveal' && Q.view === 'question') act('answer');
     else if (a === 'done' && Q.view !== 'question') act('listDone');
   }
+  // ---- نفس الشي داخل كلود (artifact): MQTT ممنوع هناك، فنستخدم «room» حق كلود.
+  // التلفزيون يحط حالة اللعبة بـ presence، والجوال (#r- للحَكَم، #d- للرسّام) يحط أوامره بطابور مرقّم بـ presence حقه.
+  const ART_URL = 'https://claude.ai/artifact/XqgUKfTvv4EWgvdAwYsKfF';
+  async function initRoomTV() {
+    if (!window.claude || typeof window.claude.use !== 'function') return false;
+    let room = null; try { room = await window.claude.use('room'); } catch (e) {} if (!room) return false;
+    let code = ''; try { code = sessionStorage.getItem('tirakkad-room') || ''; } catch (e) {}
+    if (!code) { code = Array.from(crypto.getRandomValues(new Uint8Array(5)), (b) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join(''); try { sessionStorage.setItem('tirakkad-room', code); } catch (e) {} }
+    let nr = null; try { nr = await room.join('tk-' + code.toLowerCase()); } catch (e) { return false; }
+    NET.on = true; NET.roomTV = nr; NET.room = code; NET.refUrl = ART_URL + '#r-' + code;
+    const last = {}; let lastSnap = null;
+    const onPeersTV = ({ peers }) => {
+      if (peers === lastSnap) return; lastSnap = peers;
+      let any = false;
+      peers.forEach((p) => {
+        if (p.sameTab) return; const tk = p.presence && p.presence.tk; if (!tk || !Array.isArray(tk.q)) { if (tk) any = true; return; }
+        any = true; const seen0 = last[p.peer] || 0; let mx = seen0;
+        tk.q.forEach((e) => { if (Array.isArray(e) && e[0] > seen0) { handleRemote(e[1], e[2]); mx = Math.max(mx, e[0]); } });
+        last[p.peer] = mx;
+      });
+      NET.peerInfo = `${peers.length - 1} متصل` + (peers.some((p) => !p.sameTab && p.presence && p.presence.tk && p.presence.tk.role === 'draw') ? ' · الرسّام ✓' : '');
+      const st = document.getElementById('dlStatus'); if (st) st.textContent = NET.peerInfo;
+      if (any !== NET.ref) { NET.ref = any; if (Q && Q.type === 'list') renderView(); pushList(); }
+    };
+    nr.onPeers(onPeersTV);
+    setInterval(() => { try { onPeersTV({ peers: nr.peers() }); } catch (e) {} }, 150); // احتياط لو الصفحة بالخلفية
+    pushList(); if (Q) renderView();
+    return true;
+  }
+  function handleRemote(kind, m) {
+    if (!m || typeof m !== 'object') return;
+    if (kind === 'draw') { onDraw(m); return; }
+    if (m.adj !== undefined) { refAdjust(+m.adj, +m.d); return; }
+    if (m.a) { refAct(m.a); return; }
+    onRef(+m.i, +m.team);
+  }
+  const drawUrl = (q) => NET.roomTV ? `${ART_URL}#d-${NET.room}-${q.id}` : `${NET.base}draw.html#${NET.room}/${/^(ch|drw)-\d+-[a-z0-9]+$/.test(q.id) ? q.id : 'w.' + b64u(q.prompt)}`;
   async function initNet() {
     if (initRelay()) return;
+    if (await initRoomTV()) return;
     if (location.protocol === 'file:' || !/^(localhost|127\.|192\.168\.|10\.|172\.)/.test(location.hostname)) return;
     try {
       const j = await (await fetch('/api/ping', { cache: 'no-store' })).json();
@@ -291,6 +329,13 @@
     if (!NET.on) return;
     const L = (Q && Q.type === 'list') ? { question: Q.variant === 'survey' ? Q.q.prompt : Q.q.question, survey: Q.variant === 'survey', items: Q.items.map((it) => ({ t: it.text, v: it.value, trap: it.trap, h: it.hint || '' })), revealed: Q.revealed, teams: G.teams.map((t) => t.name), turn: Q.listTurn,
       started: !!Q.listStarted, view: Q.view, canSwap: canSwap(), hintsLeft: 2 - (Q.hintsUsed || 0), shown: Q.letters, pts: teamPts() } : null;
+    if (NET.roomTV) {
+      const st = { t: 'state', list: L, game: G ? { teams: G.teams.map((t) => t.name), scores: G.teams.map((t) => t.score), turn: G.turn } : null, draw: Q && Q.variant === 'draw' ? { q: Q.q.id, w: Q.q.prompt } : null };
+      const size = (o) => new TextEncoder().encode(JSON.stringify(o)).length;
+      if (st.list && size(st) > 3800) st.list = { ...st.list, items: st.list.items.map((it) => ({ ...it, h: '' })) };
+      if (size(st) <= 3900) NET.roomTV.presence({ tv: 1, st }).catch(() => {});
+      return;
+    }
     if (NET.relay) { try { NET.relay.publish(NET.topic + 'state', JSON.stringify({ t: 'state', list: L, game: G ? { teams: G.teams.map((t) => t.name), scores: G.teams.map((t) => t.score), turn: G.turn } : null, at: Date.now() }), { retain: true, qos: 0 }); } catch (e) {} return; }
     fetch('/api/tv/state', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ snapshot: { phase: L ? 'list' : 'idle', list: L, teams: [] } }) }).catch(() => {});
   }
@@ -901,18 +946,18 @@
     if (Q.view === 'question') {
       const draw = Q.variant === 'draw';
       const short = /^(ch|drw)-\d+-[a-z0-9]+$/.test(q.id);
-      if (draw && NET.relay) { // رسم مباشر من جوال الرسّام
-        const url = `${NET.base}draw.html#${NET.room}/${short ? q.id : 'w.' + b64u(q.prompt)}`;
+      if (draw && (NET.relay || NET.roomTV)) { // رسم مباشر من جوال الرسّام
+        const url = drawUrl(q);
         $('#qBody').innerHTML = `
           <div class="draw-live">
-            <div class="qr-secret dl-qr"><div class="qr-code">${secretQR(url)}</div><p>الرسّام يصوّر الكود ويرسم بجواله</p><p class="hint">النوع: <b>${esc(q.hint_category || '—')}</b></p>
+            <div class="qr-secret dl-qr"><div class="qr-code">${secretQR(url)}</div><p>الرسّام يصوّر الكود ويرسم بجواله</p>${NET.roomTV ? `<p class="hint" id="dlStatus">${esc(NET.peerInfo || '')}</p>` : ''}<p class="hint">النوع: <b>${esc(q.hint_category || '—')}</b></p>
               <button class="btn ghost sm" data-act="peek">بدون جوال؟</button></div>
             <div class="dl-board"><canvas id="drawCv" width="800" height="600" aria-label="رسمة الرسّام"></canvas>${(Q.strokes || []).length ? '' : '<p class="dl-wait">الرسمة بتطلع هني أول ما يبدأ الرسّام…</p>'}</div>
             <div class="charade dl-peek" id="charade"><div class="word">${esc(q.prompt)}</div></div>
           </div>`;
         $('#qActions').innerHTML = (Q.charadeStarted ? '' : `<button class="btn ghost" data-act="startCharade">${ico('play')}ابدأ الوقت (٦٠ ثانية)</button>`) +
           `<button class="btn ans-btn" data-act="answer">${ico('eye')}الإجابة</button>`;
-        paintDraw(); return;
+        paintDraw(); pushList(); return;
       }
       const qr = secretQR(short ? secretUrl(q.id) : wordUrl(q, draw));
       $('#qBody').innerHTML = `
@@ -1010,7 +1055,7 @@
       $('#qBody').innerHTML = `
         <div class="ls-setup">
           <div class="qr-secret big"><div class="qr-code">${qr}</div><p class="${NET.ref ? 'ok' : ''}">${NET.on ? (NET.ref ? 'الحَكَم متصل ✓' : 'باركود الحَكَم') : 'باركود الحَكَم (القائمة)'}</p>${NET.room ? `<p class="room-code">الكود: <b>${NET.room}</b></p>` : ''}</div>
-          <ol class="ls-steps">
+          <div class="ls-right"><ol class="ls-steps">
             <li>اختاروا شخص محايد يكون <b>الحَكَم</b>، ويصوّر الباركود بجواله.</li>
             <li>الفرق تجاوب بالدور، وكل فريق عنده <b class="num">30</b> ثانية.</li>
             <li>إذا الجواب موجود، الحَكَم يضغط اسم الفريق، <b>فيطلع الجواب على الشاشة</b>.</li>
@@ -1018,7 +1063,7 @@
               ? '<li>كل جواب نقاطه على قد عدد الناس اللي قالوه.</li>'
               : `<li>القائمة فيها <b class="num">10</b> أجوبة مرتّبة: الأول عليه <b class="num">100</b> والعاشر (الأصعب) عليه <b class="num">1000</b>. وانتبهوا من <b>الفخوخ</b> إذا موجودة: تنقص من نقاطكم. وعندكم تلميحين بكل سؤال.</li>`}
           </ol>
-          ${NET.on ? '' : '<p class="hint">بدون سيرفر: الحَكَم يقول رقم الجواب، والمقدّم يضغط عليه بالشاشة ويختار الفريق.</p>'}
+          ${NET.on ? '' : '<p class="hint">بدون اتصال: الحَكَم يقول رقم الجواب، والمقدّم يضغط عليه بالشاشة ويختار الفريق.</p>'}</div>
         </div>`;
       $('#qActions').innerHTML = (canSwap() ? `<button class="btn ghost" data-act="listSwap">${ico('redo')}غيّر السؤال</button>` : '') + `<button class="btn ans-btn" data-act="listStart">${ico('play')}ابدأ</button>`;
       pushList(); return;
@@ -1184,6 +1229,41 @@
     if (!old) document.body.appendChild(box);
   }
   window.addEventListener('hashchange', () => secretView());
+
+  /* =================== وضع الجوال داخل كلود (#r-CODE حَكَم، #d-CODE-qid رسّام) =================== */
+  function startPhone() {
+    const h = location.hash || '', mR = /^#r-([A-Z0-9]{5})$/.exec(h), mD = /^#d-([A-Z0-9]{5})-([a-z0-9-]+)$/.exec(h);
+    if (!mR && !mD) return false;
+    const code = (mR || mD)[1], page = mR ? 'ref.html' : 'draw.html';
+    document.querySelectorAll('link[rel="stylesheet"], style').forEach((x) => x.remove());
+    document.body.removeAttribute('class');
+    document.body.innerHTML = '<p style="font:600 17px system-ui;text-align:center;margin-top:35vh;color:#13213C">جاري الاتصال بالتلفزيون…</p>';
+    const fail = (t) => { document.body.innerHTML = `<p style="font:600 17px system-ui;text-align:center;margin:30vh 20px 0;color:#13213C;line-height:1.8">${t}</p>`; };
+    (async () => {
+      const room = window.claude && typeof window.claude.use === 'function' ? await window.claude.use('room').catch(() => null) : null;
+      if (!room) { fail('عشان تتحكم من جوالك لازم تكون مسجّل دخول بحساب Claude.<br>أو العبوا من رابط GitHub: almousawi7.github.io/tirakkad'); return; }
+      let nr; try { nr = await room.join('tk-' + code.toLowerCase()); } catch (e) { fail('ما قدرت أدخل غرفة اللعبة. صوّر الباركود مرة ثانية.'); return; }
+      const role = mR ? 'ref' : 'draw', q = []; let seq = 0, state = null; const fns = [], cfns = [];
+      const link = {
+        ref: mD ? mD[2] : '', word: mD && qById[mD[2]] ? qById[mD[2]].prompt : '',
+        send(kind, obj) { q.push([++seq, kind, obj]); while (q.length > 1 && JSON.stringify(q).length > 2800) q.shift(); nr.presence({ tk: { role, q: q.slice() } }).catch(() => {}); },
+        onState(fn) { fns.push(fn); if (state) fn(state); },
+        onConn(fn) { cfns.push(fn); fn(nr.connected()); },
+      };
+      nr.onConnection((c) => cfns.forEach((f) => f(c)));
+      const onP = ({ peers }) => { const tv = peers.find((p) => !p.sameTab && p.presence && p.presence.tv); const st = tv && tv.presence.st; if (st && st !== state) { state = st; fns.forEach((f) => f(st)); } };
+      nr.onPeers(onP); setInterval(() => { try { onP({ peers: nr.peers() }); } catch (e) {} }, 200);
+      nr.presence({ tk: { role, q: [] } }).catch(() => {});
+      window.TK_LINK = link;
+      const doc = new DOMParser().parseFromString(await (await fetch(page)).text(), 'text/html');
+      doc.querySelectorAll('style').forEach((x) => document.head.appendChild(x.cloneNode(true)));
+      document.body.innerHTML = doc.body.innerHTML;
+      document.body.querySelectorAll('script').forEach((x) => x.remove());
+      doc.querySelectorAll('script:not([src])').forEach((x) => { const sc = document.createElement('script'); sc.textContent = x.textContent; document.body.appendChild(sc); });
+    })();
+    return true;
+  }
+  if (startPhone()) return;
 
   /* =================== INIT =================== */
   renderTeamSetup(); renderCatPick(); renderLanding(); paintSound(); initNet(); cloud.loadExtra(); secretView();

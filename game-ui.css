@@ -306,3 +306,6 @@ html:has(.screen.game:not([hidden])) body{background:var(--ink)}
 .dl-wait{position:absolute;inset:0;display:grid;place-items:center;margin:0;color:#8A97AB;font-weight:700;font-size:clamp(14px,calc(1.2 * var(--vu)),22px);pointer-events:none}
 .dl-peek{display:none !important}
 .dl-peek.open{display:grid !important;position:absolute;inset:0;z-index:5;margin:0;background:var(--paper,#fff)}
+
+.ls-right{display:flex;flex-direction:column;gap:var(--space-3);flex:1 1 0;min-width:0;max-width:640px}
+.ls-right .ls-steps{max-width:none}

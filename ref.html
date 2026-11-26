@@ -53,7 +53,7 @@
 <header><span class="brand">تركّد<b>!</b></span><span class="role">الحَكَم</span><span class="dot" id="dot" title="الاتصال"></span></header>
 <main id="out"><p class="wait">جاري الاتصال بالتلفزيون…</p></main>
 <nav class="bar" id="bar" hidden></nav>
-<script src="mqtt.min.js?v=1795693361"></script>
+<script src="mqtt.min.js?v=1795694254"></script>
 <script>
 (function () {
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -64,7 +64,15 @@
   let send = () => {}, act = () => {}, adjust = null;
 
   // ---- الاتصال: أونلاين (GitHub) عن طريق MQTT، أو بالبيت عن طريق السيرفر المحلي
-  if (room && window.mqtt) {
+  if (window.TK_LINK) { // داخل كلود: الاتصال عن طريق room
+    const L = window.TK_LINK;
+    L.onConn((c) => dot.classList.toggle('on', c));
+    out.innerHTML = '<p class="wait">جاري الاتصال بالتلفزيون…</p>';
+    L.onState(render);
+    send = (i, team) => { L.send('ref', { i, team }); buzz(); };
+    adjust = (k, d) => { L.send('ref', { adj: k, d }); buzz(); };
+    act = (a) => { L.send('ref', { a }); buzz(); };
+  } else if (room && window.mqtt) {
     const T = 'tirakkad-v1/' + room + '/';
     const cl = mqtt.connect('wss://broker.emqx.io:8084/mqtt', { clientId: 'ref-' + room + '-' + Math.random().toString(36).slice(2, 7), clean: true, reconnectPeriod: 2000, connectTimeout: 8000 });
     cl.on('connect', () => { dot.classList.add('on'); cl.subscribe(T + 'state'); cl.publish(T + 'hello', '{}'); });
