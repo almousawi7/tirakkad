@@ -248,9 +248,25 @@
     if (!$('#scr-board').hidden) renderTeambar(); else if (Q) renderView();
     pushList();
   }
+  // «غيّر السؤال» (اضمنها / قول اللي ببالهم): قبل لا يبدأ السؤال، نبدّله بسؤال ثاني من نفس الفئة ونفس النقاط
+  function swapPool() {
+    if (!Q || !G) return [];
+    const onBoard = new Set(G.board.flatMap((c) => c.tiles.map((t) => t.qid)));
+    const all = Q.q.cat.questions.filter((x) => x.points === Q.pts && !onBoard.has(x.id) && x.id !== Q.q.id);
+    const fresh = all.filter((x) => !seen.has(x.id));
+    return fresh.length ? fresh : all;
+  }
+  const canSwap = () => Q && Q.type === 'list' && Q.view === 'question' && !Q.listStarted && swapPool().length > 0;
+  function swapQuestion() {
+    if (!canSwap()) return;
+    const pool = swapPool(), nq = pool[Math.floor(Math.random() * pool.length)];
+    const tile = G.board[Q.ci].tiles[Q.ti]; tile.qid = nq.id; seen.add(nq.id); saveSeen(); save();
+    sfx.reveal(); openQuestion(Q.ci, Q.ti);
+  }
   function refAct(a) { // أزرار الحَكَم: ابدأ / غلط / تلميح / اكشف الباقي / احسبها
     if (!Q || Q.type !== 'list' || Q.done) return;
     if (a === 'start' && Q.view === 'question' && !Q.listStarted) act('listStart');
+    else if (a === 'swap') swapQuestion();
     else if (a === 'pass' && Q.view === 'question' && Q.listStarted) act('listPass');
     else if (a === 'hint' && Q.view === 'question' && (Q.hintsUsed || 0) < 2) act('listLetter');
     else if (a === 'reveal' && Q.view === 'question') act('answer');
@@ -274,7 +290,7 @@
   function pushList() {
     if (!NET.on) return;
     const L = (Q && Q.type === 'list') ? { question: Q.variant === 'survey' ? Q.q.prompt : Q.q.question, survey: Q.variant === 'survey', items: Q.items.map((it) => ({ t: it.text, v: it.value, trap: it.trap, h: it.hint || '' })), revealed: Q.revealed, teams: G.teams.map((t) => t.name), turn: Q.listTurn,
-      started: !!Q.listStarted, view: Q.view, hintsLeft: 2 - (Q.hintsUsed || 0), shown: Q.letters, pts: teamPts() } : null;
+      started: !!Q.listStarted, view: Q.view, canSwap: canSwap(), hintsLeft: 2 - (Q.hintsUsed || 0), shown: Q.letters, pts: teamPts() } : null;
     if (NET.relay) { try { NET.relay.publish(NET.topic + 'state', JSON.stringify({ t: 'state', list: L, game: G ? { teams: G.teams.map((t) => t.name), scores: G.teams.map((t) => t.score), turn: G.turn } : null, at: Date.now() }), { retain: true, qos: 0 }); } catch (e) {} return; }
     fetch('/api/tv/state', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ snapshot: { phase: L ? 'list' : 'idle', list: L, teams: [] } }) }).catch(() => {});
   }
@@ -1004,7 +1020,7 @@
           </ol>
           ${NET.on ? '' : '<p class="hint">بدون سيرفر: الحَكَم يقول رقم الجواب، والمقدّم يضغط عليه بالشاشة ويختار الفريق.</p>'}
         </div>`;
-      $('#qActions').innerHTML = `<button class="btn ans-btn" data-act="listStart">${ico('play')}ابدأ</button>`;
+      $('#qActions').innerHTML = (canSwap() ? `<button class="btn ghost" data-act="listSwap">${ico('redo')}غيّر السؤال</button>` : '') + `<button class="btn ans-btn" data-act="listStart">${ico('play')}ابدأ</button>`;
       pushList(); return;
     }
     const live = Q.view === 'question';
@@ -1055,6 +1071,7 @@
       case 'peek': { const c = $('#charade'); if (c) { c.classList.add('open'); const q0 = Q; later(() => { const el = $('#charade'); if (Q === q0 && el) el.classList.remove('open'); }, 4000); } break; }
       case 'strike': Q.strikes = Math.min(3, Q.strikes + 1); sfx.no(); if (Q.strikes >= 3) toast('toastNo'); renderView(); break;
       case 'listPass': sfx.no(); switchListTurn(); break;
+      case 'listSwap': swapQuestion(); break;
       case 'listStart': Q.listStarted = true; Q.listTurn = G.turn; sfx.reveal(); switchListTurn(G.turn); break;
       case 'listLetter': {
         const hidden = Q.revealed.map((x, i) => (x === null && !Q.items[i].trap && !Q.letters[i] ? i : -1)).filter((i) => i >= 0);
