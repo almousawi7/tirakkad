@@ -205,15 +205,42 @@
     NET.on = true; NET.relay = cl; NET.room = room; NET.topic = T;
     NET.base = location.href.replace(/[#?].*$/, '').replace(/[^/]*$/, '');
     NET.refUrl = NET.base + 'ref.html#' + room;
-    cl.on('connect', () => { cl.subscribe([T + 'ref', T + 'hello']); pushList(); });
+    cl.on('connect', () => { cl.subscribe([T + 'ref', T + 'hello', T + 'draw']); pushList(); });
     cl.on('message', (topic, buf) => {
       let m; try { m = JSON.parse(buf.toString()); } catch (e) { return; }
+      if (topic === T + 'draw') { onDraw(m); return; }
       if (topic === T + 'hello') { if (!NET.ref) { NET.ref = true; if (Q && Q.type === 'list') renderView(); } pushList(); return; }
       if (m.adj !== undefined) { refAdjust(+m.adj, +m.d); return; }
       if (m.a) { refAct(m.a); return; }
       onRef(+m.i, +m.team);
     });
     return true;
+  }
+  // ---- «رسم» مباشر: الرسّام يرسم بجواله (draw.html) والرسمة تطلع على التلفزيون
+  // الرسالة: {q: رقم السؤال, t:'s', id, c: اللون, w: السماكة, p: [[x,y],…] (0..1)} أو {t:'clear'} أو {t:'undo'}
+  function onDraw(m) {
+    if (!Q || Q.variant !== 'draw' || Q.done || !m || m.q !== Q.q.id) return;
+    Q.strokes = Q.strokes || [];
+    if (m.t === 'clear') Q.strokes = [];
+    else if (m.t === 'undo') Q.strokes.pop();
+    else if (m.t === 's' && Array.isArray(m.p)) {
+      let st = Q.strokes.find((x) => x.id === m.id);
+      if (!st) { st = { id: m.id, c: String(m.c || '#13213C').slice(0, 9), w: Math.max(1, Math.min(40, +m.w || 6)), p: [] }; Q.strokes.push(st); }
+      m.p.slice(0, 400).forEach((pt) => { if (Array.isArray(pt)) st.p.push([+pt[0] || 0, +pt[1] || 0]); });
+      if (!Q.charadeStarted && Q.view === 'question') act('startCharade'); // أول خط يبدأ الوقت
+    }
+    document.querySelector('.dl-wait')?.remove(); paintDraw();
+  }
+  function paintDraw() {
+    const cv = document.getElementById('drawCv'); if (!cv || !Q) return;
+    const ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    (Q.strokes || []).forEach((st) => {
+      ctx.strokeStyle = st.c; ctx.fillStyle = st.c; ctx.lineWidth = st.w * W / 400;
+      if (st.p.length === 1) { ctx.beginPath(); ctx.arc(st.p[0][0] * W, st.p[0][1] * H, ctx.lineWidth / 2, 0, 7); ctx.fill(); return; }
+      ctx.beginPath(); st.p.forEach(([x, y], k) => (k ? ctx.lineTo(x * W, y * H) : ctx.moveTo(x * W, y * H))); ctx.stroke();
+    });
   }
   function refAdjust(i, d) { // +/- من جوال الحَكَم على مجموع نقاط الفريق
     if (!G || !G.teams[i] || ![100, -100].includes(d)) return;
@@ -296,9 +323,9 @@
     if (!G || $('#scr-board').hidden) return;
     const b = $('#turnBanner'), t = G.teams[G.turn];
     b.style.setProperty('--t', `var(--team-${G.turn + 1})`);
-    b.innerHTML = `الدور على <b>${esc(t.name)}</b>`;
+    b.innerHTML = `<span class="tb-sw"></span><span>الدور على <b>${esc(t.name)}</b></span>`;
     b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
-    clearTimeout(b._h); b._h = setTimeout(() => b.classList.remove('show'), 1100);
+    clearTimeout(b._h); b._h = setTimeout(() => b.classList.remove('show'), 2600);
   }
 
   // ---------- screens ----------
@@ -857,7 +884,21 @@
     const q = Q.q;
     if (Q.view === 'question') {
       const draw = Q.variant === 'draw';
-      const qr = secretQR(/^(ch|drw)-\d+-[a-z0-9]+$/.test(q.id) ? secretUrl(q.id) : wordUrl(q, draw));
+      const short = /^(ch|drw)-\d+-[a-z0-9]+$/.test(q.id);
+      if (draw && NET.relay) { // رسم مباشر من جوال الرسّام
+        const url = `${NET.base}draw.html#${NET.room}/${short ? q.id : 'w.' + b64u(q.prompt)}`;
+        $('#qBody').innerHTML = `
+          <div class="draw-live">
+            <div class="qr-secret dl-qr"><div class="qr-code">${secretQR(url)}</div><p>الرسّام يصوّر الكود ويرسم بجواله</p><p class="hint">النوع: <b>${esc(q.hint_category || '—')}</b></p>
+              <button class="btn ghost sm" data-act="peek">بدون جوال؟</button></div>
+            <div class="dl-board"><canvas id="drawCv" width="800" height="600" aria-label="رسمة الرسّام"></canvas>${(Q.strokes || []).length ? '' : '<p class="dl-wait">الرسمة بتطلع هني أول ما يبدأ الرسّام…</p>'}</div>
+            <div class="charade dl-peek" id="charade"><div class="word">${esc(q.prompt)}</div></div>
+          </div>`;
+        $('#qActions').innerHTML = (Q.charadeStarted ? '' : `<button class="btn ghost" data-act="startCharade">${ico('play')}ابدأ الوقت (٦٠ ثانية)</button>`) +
+          `<button class="btn ans-btn" data-act="answer">${ico('eye')}الإجابة</button>`;
+        paintDraw(); return;
+      }
+      const qr = secretQR(short ? secretUrl(q.id) : wordUrl(q, draw));
       $('#qBody').innerHTML = `
         <p class="q-text">${draw ? 'ارسموها بدون كتابة ولا كلام!' : 'مثّلوا الكلمة بدون ولا كلمة!'}</p>
         <p class="hint">النوع: <b>${esc(q.hint_category || '—')}</b></p>
@@ -1043,7 +1084,7 @@
     G.board[Q.ci].tiles[Q.ti].by = tileBy;
     G.turn = (G.turn + 1) % G.teams.length;
     save();
-    if (good) { sfx.ok(); toast('toastOk', parts.join(' — ')); } else { sfx.no(); toast('toastNo'); }
+    if (good) sfx.ok(); else { sfx.no(); toast('toastNo'); } // لما فريق يجاوب صح: صوت بس، بدون رسالة على الشاشة
     Q = null; pushList();
     renderBoard(); show('scr-board');
     clearTimeout(bannerT); bannerT = setTimeout(turnBanner, 700);
@@ -1052,7 +1093,7 @@
     if (!Q || Q.done) return;
     const pts = Q.type === 'survey' ? surveyPts() : Q.pts;
     const parts = [], won = i >= 0 && pts > 0;
-    if (won) { G.teams[i].score += pts; parts.push(`صحّ لسانك ${G.teams[i].name}! +${pts}`); }
+    if (won) { G.teams[i].score += pts; parts.push(`${G.teams[i].name} +${pts}`); }
     applyStrike(i, pts, parts);
     finish(won ? i : -1, parts, won);
   }

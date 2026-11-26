@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#13213C">
+<meta name="robots" content="noindex">
+<title>تركّد — الرسّام</title>
+<style>
+  :root{--ink:#13213C;--paper:#F6F1E7;--yellow:#FFC629;--green:#0E9467;--red:#E8492F}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overscroll-behavior:none}
+  body{font-family:-apple-system,system-ui,"Segoe UI",Tahoma,sans-serif;background:var(--ink);color:#fff;display:flex;flex-direction:column;
+    padding:calc(8px + env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));gap:8px}
+  header{display:flex;align-items:center;gap:8px}
+  .brand{font-weight:900;font-size:20px;color:var(--yellow)}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--red);margin-inline-start:auto}.dot.on{background:#3CCB86}
+  .word{background:rgba(255,255,255,.1);border-radius:14px;padding:8px 12px;display:flex;align-items:center;gap:10px}
+  .word b{font-size:clamp(24px,8vw,40px);font-weight:900;flex:1}
+  .word small{display:block;color:#B9CCE6;font-size:13px;font-weight:600}
+  .word button{background:none;border:2px solid rgba(255,255,255,.4);color:#fff;border-radius:999px;padding:6px 12px;font:inherit;font-size:13px}
+  .word.hidden b{filter:blur(12px)}
+  .pad{position:relative;width:100%;aspect-ratio:4/3;background:#fff;border-radius:14px;overflow:hidden;touch-action:none;flex:none}
+  .pad canvas{width:100%;height:100%;display:block;touch-action:none}
+  .tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .sw{width:38px;height:38px;border-radius:50%;border:3px solid transparent;padding:0}
+  .sw.on{border-color:#fff;box-shadow:0 0 0 2px var(--yellow)}
+  .sz{width:38px;height:38px;border-radius:10px;border:2px solid rgba(255,255,255,.35);background:none;display:grid;place-items:center;padding:0}
+  .sz i{display:block;border-radius:50%;background:#fff}
+  .sz.on{border-color:var(--yellow);background:rgba(255,255,255,.12)}
+  .act{display:flex;gap:8px}
+  .act button{flex:1;min-height:48px;border-radius:12px;border:0;font:inherit;font-weight:800;font-size:16px}
+  .undo{background:#fff;color:var(--ink)} .clear{background:var(--red);color:#fff}
+  .msg{text-align:center;color:#B9CCE6;font-size:13px;margin:0}
+</style>
+</head>
+<body>
+<header><span class="brand">تركّد · الرسّام</span><span class="dot" id="dot"></span></header>
+<div class="word" id="word"><div style="flex:1"><small>ارسم هالكلمة بدون كتابة ولا أرقام</small><b id="w">…</b></div><button type="button" id="hideW">خبّها</button></div>
+<div class="pad"><canvas id="cv"></canvas></div>
+<div class="tools" id="tools"></div>
+<div class="act"><button class="undo" id="undo">↶ تراجع</button><button class="clear" id="clear">امسح الكل</button></div>
+<p class="msg" id="msg">الرسمة تطلع على التلفزيون وأنت ترسم.</p>
+<script src="secrets.js"></script>
+<script src="mqtt.min.js"></script>
+<script>
+(function () {
+  // الرابط: draw.html#<كود الغرفة>/<رقم السؤال>  أو  #<الكود>/w.<الكلمة base64url>
+  const parts = (location.hash || '').slice(1).split('/'), room = (parts[0] || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase(), ref = parts.slice(1).join('/');
+  const b64d = (s) => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; const bin = atob(s); return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))); };
+  let word = '', qid = ref;
+  try { if (ref.startsWith('w.')) { word = b64d(ref.slice(2)); } else { const d = (window.S || {})[ref]; word = d ? d.w : ''; } } catch (e) {}
+  document.getElementById('w').textContent = word || '—';
+  document.getElementById('hideW').onclick = (e) => { const w = document.getElementById('word'); w.classList.toggle('hidden'); e.target.textContent = w.classList.contains('hidden') ? 'اظهرها' : 'خبّها'; };
+
+  // ---- الاتصال بالتلفزيون
+  const dot = document.getElementById('dot'), msg = document.getElementById('msg');
+  let pub = () => {};
+  if (room && window.mqtt) {
+    const T = 'tirakkad-v1/' + room + '/';
+    const cl = mqtt.connect('wss://broker.emqx.io:8084/mqtt', { clientId: 'draw-' + room + '-' + Math.random().toString(36).slice(2, 7), clean: true, reconnectPeriod: 2000, connectTimeout: 8000 });
+    cl.on('connect', () => dot.classList.add('on'));
+    cl.on('close', () => dot.classList.remove('on'));
+    pub = (m) => { m.q = qid; cl.publish(T + 'draw', JSON.stringify(m)); };
+    setTimeout(() => { if (!dot.classList.contains('on')) msg.textContent = 'ما قدرت أتصل بالتلفزيون. تأكد من النت وصوّر الباركود مرة ثانية.'; }, 9000);
+  } else msg.textContent = 'صوّر باركود «رسم» اللي على شاشة اللعبة.';
+
+  // ---- الأدوات
+  const COLORS = ['#13213C', '#E8492F', '#2747D6', '#0E9467', '#F2A900', '#8B5A2B', '#FFFFFF'], SIZES = [4, 8, 16];
+  let color = COLORS[0], size = SIZES[1];
+  const tools = document.getElementById('tools');
+  tools.innerHTML = COLORS.map((c, i) => `<button class="sw ${i ? '' : 'on'}" data-c="${c}" style="background:${c};${c === '#FFFFFF' ? 'outline:1px solid #8A97AB' : ''}" aria-label="${c === '#FFFFFF' ? 'ممحاة' : 'لون'}"></button>`).join('') +
+    '<span style="flex:1"></span>' + SIZES.map((s, i) => `<button class="sz ${i === 1 ? 'on' : ''}" data-s="${s}" aria-label="سماكة"><i style="width:${s + 4}px;height:${s + 4}px"></i></button>`).join('');
+  tools.addEventListener('click', (e) => {
+    const c = e.target.closest('[data-c]'), s = e.target.closest('[data-s]');
+    if (c) { color = c.dataset.c; tools.querySelectorAll('.sw').forEach((x) => x.classList.toggle('on', x === c)); }
+    if (s) { size = +s.dataset.s; tools.querySelectorAll('.sz').forEach((x) => x.classList.toggle('on', x === s)); }
+  });
+
+  // ---- اللوح
+  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  let strokes = [], cur = null, buf = [], timer = null;
+  function fit() { const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1; cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); redraw(); }
+  function line(st) {
+    const W = cv.width, H = cv.height; ctx.strokeStyle = st.c; ctx.fillStyle = st.c; ctx.lineWidth = st.w * W / 400; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    if (st.p.length === 1) { ctx.beginPath(); ctx.arc(st.p[0][0] * W, st.p[0][1] * H, ctx.lineWidth / 2, 0, 7); ctx.fill(); return; }
+    ctx.beginPath(); st.p.forEach(([x, y], k) => (k ? ctx.lineTo(x * W, y * H) : ctx.moveTo(x * W, y * H))); ctx.stroke();
+  }
+  function redraw() { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height); strokes.forEach(line); }
+  const pt = (e) => { const r = cv.getBoundingClientRect(); return [Math.round(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * 1000) / 1000, Math.round(Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) * 1000) / 1000]; };
+  function flush() { timer = null; if (!cur || !buf.length) return; pub({ t: 's', id: cur.id, c: cur.c, w: cur.w, p: buf }); buf = []; }
+  cv.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); cv.setPointerCapture(e.pointerId);
+    cur = { id: Math.random().toString(36).slice(2, 8), c: color, w: size, p: [pt(e)] }; strokes.push(cur); buf = [cur.p[0]];
+    redraw(); flush();
+  });
+  cv.addEventListener('pointermove', (e) => {
+    if (!cur) return; e.preventDefault();
+    const p = pt(e), last = cur.p[cur.p.length - 1]; if (Math.abs(p[0] - last[0]) + Math.abs(p[1] - last[1]) < 0.003) return;
+    cur.p.push(p); buf.push(p); redraw();
+    if (!timer) timer = setTimeout(flush, 60); // نرسل كل ٦٠ جزء من الثانية عشان تطلع مباشرة
+  });
+  const end = () => { if (!cur) return; clearTimeout(timer); flush(); cur = null; };
+  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+  document.getElementById('undo').onclick = () => { if (!strokes.length) return; strokes.pop(); redraw(); pub({ t: 'undo' }); };
+  document.getElementById('clear').onclick = () => { strokes = []; redraw(); pub({ t: 'clear' }); };
+  document.addEventListener('touchmove', (e) => { if (e.target === cv) e.preventDefault(); }, { passive: false });
+  window.addEventListener('resize', fit); fit();
+})();
+</script>
+</body>
+</html>
