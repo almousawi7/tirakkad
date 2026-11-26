@@ -309,3 +309,7 @@ html:has(.screen.game:not([hidden])) body{background:var(--ink)}
 
 .ls-right{display:flex;flex-direction:column;gap:var(--space-3);flex:1 1 0;min-width:0;max-width:640px}
 .ls-right .ls-steps{max-width:none}
+
+.qr-secret .room-code.sm{font-size:.75em;letter-spacing:0;opacity:.85}
+.dl-code{margin:0;font-size:clamp(13px,calc(1 * var(--vu)),17px)}
+.dl-code b{font-size:1.5em;letter-spacing:.12em;color:var(--coral)}

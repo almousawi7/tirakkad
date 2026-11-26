@@ -950,7 +950,7 @@
         const url = drawUrl(q);
         $('#qBody').innerHTML = `
           <div class="draw-live">
-            <div class="qr-secret dl-qr"><div class="qr-code">${secretQR(url)}</div><p>الرسّام يصوّر الكود ويرسم بجواله</p>${NET.roomTV ? `<p class="hint" id="dlStatus">${esc(NET.peerInfo || '')}</p>` : ''}<p class="hint">النوع: <b>${esc(q.hint_category || '—')}</b></p>
+            <div class="qr-secret dl-qr"><div class="qr-code">${secretQR(url)}</div><p>الرسّام يصوّر الكود ويرسم بجواله</p>${NET.roomTV ? `<p class="dl-code">الكود: <b>${NET.room}</b><br><small>من تطبيق كلود: «انضم بكود» ← رسّام</small></p><p class="hint" id="dlStatus">${esc(NET.peerInfo || '')}</p>` : ''}<p class="hint">النوع: <b>${esc(q.hint_category || '—')}</b></p>
               <button class="btn ghost sm" data-act="peek">بدون جوال؟</button></div>
             <div class="dl-board"><canvas id="drawCv" width="800" height="600" aria-label="رسمة الرسّام"></canvas>${(Q.strokes || []).length ? '' : '<p class="dl-wait">الرسمة بتطلع هني أول ما يبدأ الرسّام…</p>'}</div>
             <div class="charade dl-peek" id="charade"><div class="word">${esc(q.prompt)}</div></div>
@@ -1054,7 +1054,7 @@
       const qr = secretQR(url || secretUrl(q.id));
       $('#qBody').innerHTML = `
         <div class="ls-setup">
-          <div class="qr-secret big"><div class="qr-code">${qr}</div><p class="${NET.ref ? 'ok' : ''}">${NET.on ? (NET.ref ? 'الحَكَم متصل ✓' : 'باركود الحَكَم') : 'باركود الحَكَم (القائمة)'}</p>${NET.room ? `<p class="room-code">الكود: <b>${NET.room}</b></p>` : ''}</div>
+          <div class="qr-secret big"><div class="qr-code">${qr}</div><p class="${NET.ref ? 'ok' : ''}">${NET.on ? (NET.ref ? 'الحَكَم متصل ✓' : 'باركود الحَكَم') : 'باركود الحَكَم (القائمة)'}</p>${NET.room ? `<p class="room-code">الكود: <b>${NET.room}</b></p>${NET.roomTV ? '<p class="room-code sm">من تطبيق كلود: افتح اللعبة واضغط «انضم بكود»</p>' : ''}` : ''}</div>
           <div class="ls-right"><ol class="ls-steps">
             <li>اختاروا شخص محايد يكون <b>الحَكَم</b>، ويصوّر الباركود بجواله.</li>
             <li>الفرق تجاوب بالدور، وكل فريق عنده <b class="num">30</b> ثانية.</li>
@@ -1231,10 +1231,16 @@
   window.addEventListener('hashchange', () => secretView());
 
   /* =================== وضع الجوال داخل كلود (#r-CODE حَكَم، #d-CODE-qid رسّام) =================== */
-  function startPhone() {
-    const h = location.hash || '', mR = /^#r-([A-Z0-9]{5})$/.exec(h), mD = /^#d-([A-Z0-9]{5})-([a-z0-9-]+)$/.exec(h);
-    if (!mR && !mD) return false;
-    const code = (mR || mD)[1], page = mR ? 'ref.html' : 'draw.html';
+  // يفتح من الرابط (#r-/#d-) أو من زر «انضم بكود» (تطبيق كلود بالجوال ما يوصّل الرابط كامل)
+  function startPhone(opts) {
+    let role, code, qid = '';
+    if (opts) ({ role, code } = opts);
+    else {
+      const h = location.hash || '', mR = /^#r-([A-Z0-9]{5})$/.exec(h), mD = /^#d-([A-Z0-9]{5})-([a-z0-9-]+)$/.exec(h);
+      if (!mR && !mD) return false;
+      role = mR ? 'ref' : 'draw'; code = (mR || mD)[1]; qid = mD ? mD[2] : '';
+    }
+    const page = role === 'ref' ? 'ref.html' : 'draw.html';
     document.querySelectorAll('link[rel="stylesheet"], style').forEach((x) => x.remove());
     document.body.removeAttribute('class');
     document.body.innerHTML = '<p style="font:600 17px system-ui;text-align:center;margin-top:35vh;color:#13213C">جاري الاتصال بالتلفزيون…</p>';
@@ -1243,9 +1249,9 @@
       const room = window.claude && typeof window.claude.use === 'function' ? await window.claude.use('room').catch(() => null) : null;
       if (!room) { fail('عشان تتحكم من جوالك لازم تكون مسجّل دخول بحساب Claude.<br>أو العبوا من رابط GitHub: almousawi7.github.io/tirakkad'); return; }
       let nr; try { nr = await room.join('tk-' + code.toLowerCase()); } catch (e) { fail('ما قدرت أدخل غرفة اللعبة. صوّر الباركود مرة ثانية.'); return; }
-      const role = mR ? 'ref' : 'draw', q = []; let seq = 0, state = null; const fns = [], cfns = [];
+      const q = []; let seq = 0, state = null; const fns = [], cfns = [];
       const link = {
-        ref: mD ? mD[2] : '', word: mD && qById[mD[2]] ? qById[mD[2]].prompt : '',
+        ref: qid, word: qid && qById[qid] ? qById[qid].prompt : '',
         send(kind, obj) { q.push([++seq, kind, obj]); while (q.length > 1 && JSON.stringify(q).length > 2800) q.shift(); nr.presence({ tk: { role, q: q.slice() } }).catch(() => {}); },
         onState(fn) { fns.push(fn); if (state) fn(state); },
         onConn(fn) { cfns.push(fn); fn(nr.connected()); },
@@ -1264,8 +1270,24 @@
     return true;
   }
   if (startPhone()) return;
+  // «انضم بكود» — يطلع بس داخل كلود
+  (function joinUI() {
+    const btn = $('#btnJoin'), box = $('#joinBox'); if (!btn || !box) return;
+    if (!window.claude || typeof window.claude.use !== 'function') return;
+    btn.hidden = false;
+    btn.addEventListener('click', () => { box.hidden = !box.hidden; if (!box.hidden) $('#joinCode').focus(); });
+    $('#joinCode').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5); });
+    box.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-join]'); if (!b) return;
+      const code = $('#joinCode').value;
+      if (code.length !== 5) { $('#joinMsg').textContent = 'اكتب الكود اللي تحت الباركود بالتلفزيون (٥ حروف وأرقام)'; return; }
+      window.scrollTo(0, 0); startPhone({ role: b.dataset.join, code });
+    });
+  })();
 
   /* =================== INIT =================== */
+  // أسئلة إضافية (يومية) منشورة مع الموقع: extra.js
+  Object.entries(window.TIRAKKAD_EXTRA || {}).forEach(([cid, list]) => addExtra(cid, list));
   renderTeamSetup(); renderCatPick(); renderLanding(); paintSound(); initNet(); cloud.loadExtra(); secretView();
   $('#btnResume').hidden = !load();
   window.__tirakkad = { get G() { return G; }, get Q() { return Q; } };

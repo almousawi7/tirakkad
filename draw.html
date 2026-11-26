@@ -41,8 +41,8 @@
 <div class="tools" id="tools"></div>
 <div class="act"><button class="undo" id="undo">↶ تراجع</button><button class="clear" id="clear">امسح الكل</button></div>
 <p class="msg" id="msg">الرسمة تطلع على التلفزيون وأنت ترسم.</p>
-<script src="secrets.js?v=1795694254"></script>
-<script src="mqtt.min.js?v=1795694254"></script>
+<script src="secrets.js?v=1795695871"></script>
+<script src="mqtt.min.js?v=1795695871"></script>
 <script>
 (function () {
   // الرابط: draw.html#<كود الغرفة>/<رقم السؤال>  أو  #<الكود>/w.<الكلمة base64url>
@@ -59,7 +59,6 @@
   let pub = () => {};
   if (LINK) {
     LINK.onConn((c) => dot.classList.toggle('on', c));
-    LINK.onState((s) => { if (!word && s && s.draw && s.draw.q === qid) { word = s.draw.w; document.getElementById('w').textContent = word; } });
     pub = (m) => { m.q = qid; LINK.send('draw', m); };
   } else if (room && window.mqtt) {
     const T = 'tirakkad-v1/' + room + '/';
@@ -111,6 +110,13 @@
   document.getElementById('clear').onclick = () => { strokes = []; redraw(); pub({ t: 'clear' }); };
   document.addEventListener('touchmove', (e) => { if (e.target === cv) e.preventDefault(); }, { passive: false });
   window.addEventListener('resize', fit); fit();
+  // داخل كلود: الرسّام يتبع سؤال «رسم» المفتوح على التلفزيون (كلمة جديدة = لوح جديد)
+  if (LINK) LINK.onState((s) => {
+    const d = s && s.draw;
+    if (!d) { if (!qid) { document.getElementById('w').textContent = '…'; msg.textContent = 'متصل ✓ انتظر لين يفتحون سؤال «رسم» على التلفزيون.'; } return; }
+    if (d.q !== qid) { qid = d.q; word = d.w; strokes = []; redraw(); msg.textContent = 'ارسم! الرسمة تطلع على التلفزيون وأنت ترسم.'; }
+    document.getElementById('w').textContent = word || d.w;
+  });
 })();
 </script>
 </body>

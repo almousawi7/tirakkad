@@ -222,3 +222,10 @@ html .cat-card.has-cover:hover{transform:translateY(-3px) !important}
 .quota-chip.empty{background:#FDE2E2;color:#8A1C1C;border-color:#E5484D}
 .step-foot{display:flex;flex-direction:column;align-items:center;gap:10px}
 @media (max-width:700px){.lnav .quota-chip.sm{display:none}}
+
+/* انضم بكود (جوال الحَكَم/الرسّام من تطبيق كلود) */
+.join-box{flex-basis:100%;display:grid;gap:8px;background:rgb(255 255 255 / .08);border:2px solid rgb(255 255 255 / .25);border-radius:18px;padding:14px;max-width:420px}
+.join-box label{font-weight:700;font-size:15px}
+.join-box input{font:900 28px/1.2 system-ui;letter-spacing:.25em;text-align:center;border-radius:12px;border:2px solid var(--yellow);padding:.3em;background:#fff;color:var(--ink);text-transform:uppercase}
+.join-btns{display:flex;gap:8px}.join-btns .btn{flex:1;justify-content:center}
+.join-msg{margin:0;color:var(--yellow);font-size:14px;min-height:1em}
