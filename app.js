@@ -397,13 +397,62 @@
     $$('.toast.show, #turnBanner.show').forEach((x) => { clearTimeout(x._h); x.classList.remove('show'); });
   }
   // المسرح: نحسب كم نكبّر/نصغّر لوحة 1280×720 عشان تعبّي الشاشة بدون تمرير
+  // ---------- وضع التلفزيون (screen mirroring): شاشة كاملة + هامش للحواف عشان التلفزيون ما يقص شي ----------
+  const TV = { on: false, pad: 5 };
+  try { Object.assign(TV, JSON.parse(localStorage.getItem('tirakkad-tv') || '{}')); } catch (e) {}
+  TV.pad = Math.max(0, Math.min(12, +TV.pad || 0));
+  let wakeLock = null;
+  function saveTV() { try { localStorage.setItem('tirakkad-tv', JSON.stringify(TV)); } catch (e) {} }
+  function applyTV() {
+    document.documentElement.classList.toggle('tv-mode', TV.on);
+    document.documentElement.style.setProperty('--tv-pad', TV.on ? TV.pad : 0);
+    document.querySelectorAll('[data-tv]').forEach((b) => { b.classList.toggle('on', TV.on); b.setAttribute('aria-pressed', String(TV.on)); });
+    fitStage();
+  }
+  async function keepAwake() { try { if (TV.on && navigator.wakeLock && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (e) {} }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) keepAwake(); });
+  function enterFull() { const el = document.documentElement, f = el.requestFullscreen || el.webkitRequestFullscreen; try { const p = f && f.call(el); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
+  function exitFull() { try { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); else if (document.webkitFullscreenElement) document.webkitExitFullscreen(); } catch (e) {} }
+  function tvCalib() {
+    let box = document.getElementById('tvCalib');
+    if (!box) { box = document.createElement('div'); box.id = 'tvCalib'; box.dir = 'rtl'; document.body.appendChild(box); }
+    const paint = () => {
+      box.innerHTML = `<div class="tvc-frame"><i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i>
+        <div class="tvc-panel">
+          <h2>📺 ضبط حواف التلفزيون</h2>
+          <p>لازم تشوف <b>الزوايا الأربع الصفرا كاملة</b> على التلفزيون. إذا وحدة منها مقصوصة اضغط <b>+</b> لين تبين كلها.</p>
+          <div class="tvc-row"><button class="btn" data-tvc="-" aria-label="هامش أقل">−</button><span class="tvc-val num">${TV.pad}%</span><button class="btn" data-tvc="+" aria-label="هامش أكثر">+</button></div>
+          <p class="tvc-tip">💡 من الآيفون: اقلب الجوال بالعرض وشغّل «انعكاس الشاشة» (Screen Mirroring) من مركز التحكم. وعشان يختفي شريط سفاري: زر المشاركة ← «إضافة إلى الشاشة الرئيسية» وافتح اللعبة من الأيقونة.</p>
+          <div class="tvc-row"><button class="btn ans-btn" data-tvc="ok">تمام</button><button class="btn ghost" data-tvc="off">اطفي وضع التلفزيون</button></div>
+        </div></div>`;
+    };
+    paint(); box.hidden = false;
+    box.onclick = (e) => {
+      const b = e.target.closest('[data-tvc]'); if (!b) return;
+      const k = b.dataset.tvc;
+      if (k === '+' || k === '-') { TV.pad = Math.max(0, Math.min(12, TV.pad + (k === '+' ? 1 : -1))); saveTV(); applyTV(); paint(); }
+      else if (k === 'ok') box.hidden = true;
+      else if (k === 'off') { TV.on = false; saveTV(); applyTV(); exitFull(); box.hidden = true; }
+    };
+  }
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-tv]'); if (!b) return;
+    if (!TV.on) { TV.on = true; saveTV(); applyTV(); enterFull(); keepAwake(); }
+    tvCalib();
+  });
+  // الماوس يختفي بعد ثانيتين بوضع التلفزيون
+  let idleT = null;
+  document.addEventListener('mousemove', () => { document.documentElement.classList.remove('tv-idle'); clearTimeout(idleT); if (TV.on) idleT = setTimeout(() => document.documentElement.classList.add('tv-idle'), 2000); });
+
   function fitStage() {
     const vv = window.visualViewport;
-    const w = vv ? vv.width : innerWidth, h = vv ? vv.height : innerHeight;
+    const p = TV.on ? TV.pad / 100 : 0;
+    const w = (vv ? vv.width : innerWidth) * (1 - 2 * p), h = (vv ? vv.height : innerHeight) * (1 - 2 * p);
     document.documentElement.style.setProperty('--stage-s', Math.min(w / 1280, h / 720).toFixed(4));
   }
-  fitStage();
+  applyTV();
   window.addEventListener('resize', fitStage);
+  document.addEventListener('fullscreenchange', fitStage);
   if (window.visualViewport) visualViewport.addEventListener('resize', fitStage);
   function show(id) { if (id !== 'scr-board') clearOverlays(); $$('.screen').forEach((s) => (s.hidden = s.id !== id)); window.scrollTo(0, 0); }
 

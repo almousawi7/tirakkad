@@ -3,17 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="تركّد">
 <title>تركّد</title>
 <meta name="description" content="تركّد — لعبة أسئلة الديوانية">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="base.css?v=1795697732">
-<link rel="stylesheet" href="app.css?v=1795697732">
-<link rel="stylesheet" href="theme-bright.css?v=1795697732">
-<link rel="stylesheet" href="theme-pro.css?v=1795697732">
-<link rel="stylesheet" href="game-ui.css?v=1795697732">
-<link rel="stylesheet" href="landing.css?v=1795697732">
+<link rel="stylesheet" href="base.css?v=1795698140">
+<link rel="stylesheet" href="app.css?v=1795698140">
+<link rel="stylesheet" href="theme-bright.css?v=1795698140">
+<link rel="stylesheet" href="theme-pro.css?v=1795698140">
+<link rel="stylesheet" href="game-ui.css?v=1795698140">
+<link rel="stylesheet" href="landing.css?v=1795698140">
 <script>document.documentElement.dataset.theme="pro"</script>
 </head>
 <body>
@@ -92,6 +96,7 @@
       <a href="#special">فئات مميّزة</a>
     </nav>
     <span class="spacer"></span>
+    <button class="btn ghost sm" data-tv title="شاشة كاملة وضبط الحواف للتلفزيون">📺 وضع التلفزيون</button>
     <span class="quota-chip sm" data-quota hidden></span>
     <button class="btn sm" data-go="setup"><svg class="i"><use href="#i-play"/></svg>العب الحين</button>
   </header>
@@ -206,6 +211,7 @@
     <span class="turn-pill" id="turnPill"></span>
     <span class="spacer"></span>
     <span class="left-count">باقي <b class="num" id="leftCount"></b> سؤال</span>
+    <button class="icon-btn" data-tv aria-label="وضع التلفزيون" title="وضع التلفزيون (screen mirroring)">📺</button>
     <button class="icon-btn" data-sound aria-label="الصوت" title="الصوت"><svg class="i"><use href="#i-sound"/></svg></button>
     <button class="btn ghost sm" id="btnEnd"><svg class="i"><use href="#i-flag"/></svg>انتهاء اللعبة</button>
     <button class="btn ghost sm" id="btnHome"><svg class="i"><use href="#i-home"/></svg>الرئيسية</button>
@@ -299,14 +305,14 @@
   </div>
 </dialog>
 
-<script src="qrcode.min.js?v=1795697732"></script>
-<script src="mqtt.min.js?v=1795697732"></script>
-<script src="questions.js?v=1795697732"></script>
-<script src="extra.js?v=1795697732"></script>
-<script src="media.js?v=1795697732"></script>
-<script src="covers.js?v=1795697732"></script>
-<script src="art.js?v=1795697732"></script>
-<script src="categories-meta.js?v=1795697732"></script>
-<script src="app.js?v=1795697732"></script>
+<script src="qrcode.min.js?v=1795698140"></script>
+<script src="mqtt.min.js?v=1795698140"></script>
+<script src="questions.js?v=1795698140"></script>
+<script src="extra.js?v=1795698140"></script>
+<script src="media.js?v=1795698140"></script>
+<script src="covers.js?v=1795698140"></script>
+<script src="art.js?v=1795698140"></script>
+<script src="categories-meta.js?v=1795698140"></script>
+<script src="app.js?v=1795698140"></script>
 </body>
 </html>

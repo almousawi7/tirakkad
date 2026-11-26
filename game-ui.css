@@ -313,3 +313,25 @@ html:has(.screen.game:not([hidden])) body{background:var(--ink)}
 .qr-secret .room-code.sm{font-size:.75em;letter-spacing:0;opacity:.85}
 .dl-code{margin:0;font-size:clamp(13px,calc(1 * var(--vu)),17px)}
 .dl-code b{font-size:1.5em;letter-spacing:.12em;color:var(--coral)}
+
+/* ---------- وضع التلفزيون ---------- */
+html.tv-mode .screen:not(.game){padding:calc(var(--tv-pad,0) * 1vh) calc(var(--tv-pad,0) * 1vw) !important}
+html.tv-mode .pick-bar{bottom:calc(var(--tv-pad,0) * 1vh)}
+html.tv-mode .turn-banner{top:calc(var(--tv-pad,0) * 1vh + 10px) !important}
+html.tv-idle,html.tv-idle *{cursor:none !important}
+[data-tv].on{background:var(--yellow) !important;color:var(--ink) !important;border-color:var(--yellow) !important}
+#tvCalib{position:fixed;inset:0;z-index:200;background:rgb(10 18 34 / .92);color:#fff;font-family:inherit}
+#tvCalib[hidden]{display:none}
+#tvCalib .tvc-frame{position:absolute;inset:calc(var(--tv-pad,0) * 1vh) calc(var(--tv-pad,0) * 1vw);border:3px dashed rgb(255 210 63 / .6);border-radius:6px;display:grid;place-items:center}
+#tvCalib .c{position:absolute;width:56px;height:56px;border:8px solid var(--yellow)}
+#tvCalib .tl{top:-3px;right:-3px;border-left:0;border-bottom:0}
+#tvCalib .tr{top:-3px;left:-3px;border-right:0;border-bottom:0}
+#tvCalib .bl{bottom:-3px;right:-3px;border-left:0;border-top:0}
+#tvCalib .br{bottom:-3px;left:-3px;border-right:0;border-top:0}
+#tvCalib .tvc-panel{max-width:min(640px,86%);text-align:center;display:grid;gap:12px;padding:16px}
+#tvCalib h2{margin:0;font-size:clamp(20px,3vw,34px);font-weight:900}
+#tvCalib p{margin:0;font-size:clamp(14px,1.6vw,19px);line-height:1.7;color:#DDE6F3}
+#tvCalib .tvc-tip{font-size:clamp(12px,1.2vw,15px);color:#AFC0D8}
+#tvCalib .tvc-row{display:flex;gap:12px;justify-content:center;align-items:center;flex-wrap:wrap}
+#tvCalib .tvc-row .btn{min-width:64px;justify-content:center;font-size:clamp(16px,2vw,24px)}
+#tvCalib .tvc-val{font-size:clamp(26px,4vw,44px);font-weight:900;color:var(--yellow);min-width:3ch}
