@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>تركّد</title>
+<style>
+:root{--bg:#0F2A4F;--fg:#fff;--muted:#B9CCE6;--gold:#FFD23F;--blue:#2F7BF5;--red:#E5484D;--card:rgba(255,255,255,.1)}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,system-ui,"Segoe UI",Tahoma,sans-serif}
+main{max-width:560px;margin:auto;padding:calc(env(safe-area-inset-top,0px) + 22px) max(18px,env(safe-area-inset-right,0px)) 40px max(18px,env(safe-area-inset-left,0px));text-align:center}
+.brand{font-weight:900;font-size:22px;color:var(--gold);margin:0 0 14px}
+.sub{color:var(--muted);font-size:16px;margin:10px 0}
+.word{font-size:clamp(40px,14vw,84px);font-weight:900;margin:18px 0;line-height:1.2;word-break:break-word}
+.tip{background:var(--card);border-radius:12px;padding:10px 14px;font-size:15px}
+.q{font-size:20px;font-weight:800;margin:6px 0 14px}
+ol{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px;text-align:right}
+li{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:12px;padding:10px 12px;font-size:18px;font-weight:700}
+li i{font-style:normal;background:var(--blue);border-radius:8px;min-width:30px;text-align:center;flex:none}
+li span{flex:1;min-width:0}
+li small{display:block;font-weight:400;font-size:13px;color:var(--muted)}
+li b{color:var(--gold);font-variant-numeric:tabular-nums}
+.trap i{background:var(--red)} .trap b{color:#FF8A8D}
+.hide{margin-top:22px;background:none;border:2px solid rgba(255,255,255,.35);color:#fff;border-radius:999px;padding:8px 18px;font:inherit}
+.cover{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;font-size:20px;color:var(--muted)}
+</style>
+</head>
+<body>
+<main id="m"><p class="brand">تركّد</p><p class="sub">صوّر الباركود اللي على شاشة اللعبة.</p></main>
+<script src="secrets.js"></script>
+<script>
+(function () {
+  var m = document.getElementById('m');
+  var esc = function (t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  function fromB64(s) { // base64url → نص UTF-8
+    s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '=';
+    var bin = atob(s), bytes = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+  function render() {
+    var h = decodeURIComponent((location.hash || '').slice(1)), d = null;
+    if (!h) return;
+    if (h.indexOf('w.') === 0) { // كلمة محفوظة داخل الرابط: نوع|كلمة|تصنيف|تلميح
+      try { var p = fromB64(h.slice(2)).split('|'); d = { k: p[0], w: p[1], h: p[2], tip: p[3] }; } catch (e) {}
+    } else d = (window.S || {})[h];
+    if (!d) { m.innerHTML = '<p class="brand">تركّد</p><p class="sub">ما لقيت هالسؤال. استخدم زر «بدون جوال؟» على شاشة اللعبة.</p>'; return; }
+    var html = '<p class="brand">تركّد</p>';
+    if (d.k === 'c' || d.k === 'd') {
+      html += '<p class="sub">' + (d.k === 'd' ? 'ارسم هالكلمة بدون كتابة ولا كلام' : 'مثّل هالكلمة بدون ولا كلمة') + '</p>' +
+        '<p class="word">' + esc(d.w) + '</p>' + (d.h ? '<p class="sub">النوع: ' + esc(d.h) + '</p>' : '') + (d.tip ? '<p class="tip">' + esc(d.tip) + '</p>' : '');
+    } else {
+      html += '<p class="sub">ورقة الحَكَم · لا تفرّجها أحد</p><p class="q">' + esc(d.q) + '</p><ol>' +
+        d.a.map(function (x, i) { return '<li><i>' + (i + 1) + '</i><span>' + esc(x[0]) + (x[2] ? '<small>' + esc(x[2]) + '</small>' : '') + '</span><b>' + x[1] + '</b></li>'; }).join('') + '</ol>';
+      if (d.t && d.t.length) html += '<p class="sub">فخوخ (تنقص من النقاط)</p><ol>' + d.t.map(function (x) { return '<li class="trap"><i>!</i><span>' + esc(x[0]) + '</span><b>' + x[1] + '</b></li>'; }).join('') + '</ol>';
+    }
+    html += '<button class="hide" type="button" id="hide">غطّ الشاشة</button>';
+    m.innerHTML = html;
+    document.getElementById('hide').onclick = function () {
+      var c = document.createElement('div'); c.className = 'cover'; c.textContent = 'اضغط عشان تشوف'; c.onclick = function () { c.remove(); }; document.body.appendChild(c);
+    };
+  }
+  render(); window.addEventListener('hashchange', render);
+})();
+</script>
+</body>
+</html>
