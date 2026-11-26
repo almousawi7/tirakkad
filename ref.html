@@ -41,6 +41,12 @@
   .bar .go{background:var(--green);color:#fff} .bar .no{background:#E8492F;color:#fff} .bar .hint{background:var(--yellow)}
   .bar button:disabled{opacity:.35}
   .bar[hidden]{display:none}
+  .tot{background:#fff;border:2px solid var(--ink);border-radius:16px;padding:8px;margin-bottom:12px;display:grid;gap:6px}
+  .tot h4{margin:0 4px;font-size:13px;color:#3A4A66}
+  .tr{display:flex;align-items:center;gap:8px}
+  .tr .nm{flex:1;min-width:0;color:#fff;border-radius:10px;padding:6px 10px;font-weight:800;display:flex;justify-content:space-between}
+  .tr .nm b{font-variant-numeric:tabular-nums}
+  .tr button{width:48px;height:44px;border-radius:10px;border:2px solid var(--ink);background:#fff;font:inherit;font-weight:900;font-size:22px;color:var(--ink)}
 </style>
 </head>
 <body>
@@ -55,7 +61,7 @@
   const out = document.getElementById('out'), bar = document.getElementById('bar'), dot = document.getElementById('dot');
   const buzz = () => { try { navigator.vibrate && navigator.vibrate(20); } catch (e) {} };
   const room = (location.hash || '').slice(1).replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-  let send = () => {}, act = () => {};
+  let send = () => {}, act = () => {}, adjust = null;
 
   // ---- الاتصال: أونلاين (GitHub) عن طريق MQTT، أو بالبيت عن طريق السيرفر المحلي
   if (room && window.mqtt) {
@@ -66,6 +72,7 @@
     cl.on('offline', () => dot.classList.remove('on'));
     cl.on('message', (t, buf) => { try { const m = JSON.parse(buf.toString()); if (m.t === 'state') render(m); } catch (e) {} });
     send = (i, team) => { cl.publish(T + 'ref', JSON.stringify({ i, team })); buzz(); };
+    adjust = (k, d) => { cl.publish(T + 'ref', JSON.stringify({ adj: k, d })); buzz(); };
     act = (a) => { cl.publish(T + 'ref', JSON.stringify({ a })); buzz(); };
     setTimeout(() => { if (!dot.classList.contains('on')) out.innerHTML = '<p class="wait">ما قدرت أتصل. تأكد إن النت شغال، وصوّر الباركود مرة ثانية.</p>'; }, 9000);
   } else if (location.protocol.startsWith('http') && !room) {
@@ -80,9 +87,14 @@
     out.innerHTML = '<p class="wait">صوّر باركود الحَكَم اللي على شاشة اللعبة.</p>';
   }
 
+  // مجموع نقاط الفرق مع +/- (١٠٠) — يتعدّل على التلفزيون على طول
+  function totals(g) {
+    if (!g || !adjust) return '';
+    return `<div class="tot"><h4>مجموع النقاط</h4>${g.teams.map((t, k) => `<div class="tr"><button data-adj="${k}" data-d="-100" aria-label="ناقص ١٠٠">−</button><span class="nm" style="background:${tc(k)}"><span>${esc(t)}</span><b>${g.scores[k]}</b></span><button data-adj="${k}" data-d="100" aria-label="زايد ١٠٠">+</button></div>`).join('')}</div>`;
+  }
   function render(s) {
     const L = s && s.list;
-    if (!L) { bar.hidden = true; out.innerHTML = '<p class="wait">متصل بالتلفزيون ✓<br>أول ما يفتحون سؤال «اضمنها» أو «قول اللي ببالهم» تطلع القائمة هني.</p>'; return; }
+    if (!L) { bar.hidden = true; out.innerHTML = totals(s && s.game) + '<p class="wait" style="margin-top:12vh">متصل بالتلفزيون ✓<br>أول ما يفتحون سؤال «اضمنها» أو «قول اللي ببالهم» تطلع القائمة هني.</p>'; return; }
     const teams = L.teams || [], pts = L.pts || [], live = L.view === 'question', shown = L.shown || {};
     const row = (it, i, n) => {
       const by = L.revealed[i], got = by !== null && by !== undefined;
@@ -93,7 +105,8 @@
     let n = 0;
     const reals = L.items.map((it, i) => it.trap ? '' : row(it, i, ++n)).join('');
     const traps = L.items.map((it, i) => it.trap ? row(it, i, 0) : '').join('');
-    out.innerHTML = `
+    out.innerHTML = totals(s.game) + `
+      <h4 style="margin:0 4px 6px;font-size:13px;color:#3A4A66">نقاط هالسؤال</h4>
       <div class="scores">${teams.map((t, k) => `<div class="sc ${L.started && live && L.turn === k ? 'turn' : ''}" style="background:${tc(k)}"><span>${esc(t)}</span><b>${pts[k] || 0}</b></div>`).join('')}</div>
       <p class="q">${esc(L.question)}</p>
       <p class="help">${!live ? 'السؤال خلص. اضغط «احسبها» عشان تنحسب النقاط.' : !L.started ? 'اضغط «ابدأ» تحت، وبعدها الفرق تجاوب بالدور.' : `الدور على <b>${esc(teams[L.turn])}</b>. إذا قالوا جواب صح اضغط اسمهم تحته${L.survey ? '' : '، وإذا قالوا فخ اضغط اسمهم تحت الفخ'}. وإذا غلط اضغط «غلط».`}</p>
@@ -104,7 +117,10 @@
       : !L.started ? '<button class="go" data-a="start">ابدأ ▶</button>'
       : `<button class="no" data-a="pass">غلط ✗ الدور للثاني</button><button class="hint" data-a="hint" ${L.hintsLeft > 0 ? '' : 'disabled'}>💡 تلميح (${Math.max(0, L.hintsLeft)})</button><button data-a="reveal">اكشف الباقي</button>`;
   }
-  out.addEventListener('click', (e) => { const b = e.target.closest('button[data-i]'); if (b) send(+b.dataset.i, +b.dataset.team); });
+  out.addEventListener('click', (e) => {
+    const p = e.target.closest('button[data-adj]'); if (p && adjust) { adjust(+p.dataset.adj, +p.dataset.d); return; }
+    const b = e.target.closest('button[data-i]'); if (b) send(+b.dataset.i, +b.dataset.team);
+  });
   bar.addEventListener('click', (e) => { const b = e.target.closest('button[data-a]'); if (b) act(b.dataset.a); });
 })();
 </script>

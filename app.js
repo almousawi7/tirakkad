@@ -209,10 +209,17 @@
     cl.on('message', (topic, buf) => {
       let m; try { m = JSON.parse(buf.toString()); } catch (e) { return; }
       if (topic === T + 'hello') { if (!NET.ref) { NET.ref = true; if (Q && Q.type === 'list') renderView(); } pushList(); return; }
+      if (m.adj !== undefined) { refAdjust(+m.adj, +m.d); return; }
       if (m.a) { refAct(m.a); return; }
       onRef(+m.i, +m.team);
     });
     return true;
+  }
+  function refAdjust(i, d) { // +/- من جوال الحَكَم على مجموع نقاط الفريق
+    if (!G || !G.teams[i] || ![100, -100].includes(d)) return;
+    G.teams[i].score += d; save(); sfx[d > 0 ? 'ok' : 'no']();
+    if (!$('#scr-board').hidden) renderTeambar(); else if (Q) renderView();
+    pushList();
   }
   function refAct(a) { // أزرار الحَكَم: ابدأ / غلط / تلميح / اكشف الباقي / احسبها
     if (!Q || Q.type !== 'list' || Q.done) return;
@@ -241,7 +248,7 @@
     if (!NET.on) return;
     const L = (Q && Q.type === 'list') ? { question: Q.variant === 'survey' ? Q.q.prompt : Q.q.question, survey: Q.variant === 'survey', items: Q.items.map((it) => ({ t: it.text, v: it.value, trap: it.trap, h: it.hint || '' })), revealed: Q.revealed, teams: G.teams.map((t) => t.name), turn: Q.listTurn,
       started: !!Q.listStarted, view: Q.view, hintsLeft: 2 - (Q.hintsUsed || 0), shown: Q.letters, pts: teamPts() } : null;
-    if (NET.relay) { try { NET.relay.publish(NET.topic + 'state', JSON.stringify({ t: 'state', list: L, at: Date.now() }), { retain: true, qos: 0 }); } catch (e) {} return; }
+    if (NET.relay) { try { NET.relay.publish(NET.topic + 'state', JSON.stringify({ t: 'state', list: L, game: G ? { teams: G.teams.map((t) => t.name), scores: G.teams.map((t) => t.score), turn: G.turn } : null, at: Date.now() }), { retain: true, qos: 0 }); } catch (e) {} return; }
     fetch('/api/tv/state', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ snapshot: { phase: L ? 'list' : 'idle', list: L, teams: [] } }) }).catch(() => {});
   }
 
@@ -621,7 +628,7 @@
   }
   $('#teambar').addEventListener('click', (e) => {
     const pm = e.target.closest('[data-pm]');
-    if (pm) { const i = +pm.dataset.pm; G.teams[i].score += +pm.dataset.d; save(); renderTeambar(); return; }
+    if (pm) { const i = +pm.dataset.pm; G.teams[i].score += +pm.dataset.d; save(); renderTeambar(); pushList(); return; }
     const h = e.target.closest('.hicon');
     if (h && h.dataset.help === 'strike') {
       const i = +h.dataset.team;
