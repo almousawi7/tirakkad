@@ -335,3 +335,7 @@ html.tv-idle,html.tv-idle *{cursor:none !important}
 #tvCalib .tvc-row{display:flex;gap:12px;justify-content:center;align-items:center;flex-wrap:wrap}
 #tvCalib .tvc-row .btn{min-width:64px;justify-content:center;font-size:clamp(16px,2vw,24px)}
 #tvCalib .tvc-val{font-size:clamp(26px,4vw,44px);font-weight:900;color:var(--yellow);min-width:3ch}
+
+/* «غيّر السؤال» */
+.swap-btn{background:var(--yellow) !important;color:var(--ink) !important;border-color:var(--ink) !important;font-weight:900}
+.ls-title{margin:0 0 var(--space-3);text-align:center}

@@ -256,7 +256,7 @@
     const fresh = all.filter((x) => !seen.has(x.id));
     return fresh.length ? fresh : all;
   }
-  const canSwap = () => Q && Q.type === 'list' && Q.view === 'question' && !Q.listStarted && swapPool().length > 0;
+  const canSwap = () => Q && Q.type === 'list' && Q.view === 'question' && Q.revealed.every((x) => x === null) && swapPool().length > 0;
   function swapQuestion() {
     if (!canSwap()) return;
     const pool = swapPool(), nq = pool[Math.floor(Math.random() * pool.length)];
@@ -266,7 +266,7 @@
   function refAct(a) { // أزرار الحَكَم: ابدأ / غلط / تلميح / اكشف الباقي / احسبها
     if (!Q || Q.type !== 'list' || Q.done) return;
     if (a === 'start' && Q.view === 'question' && !Q.listStarted) act('listStart');
-    else if (a === 'swap') swapQuestion();
+    else if (a === 'swap' && canSwap()) swapQuestion();
     else if (a === 'pass' && Q.view === 'question' && Q.listStarted) act('listPass');
     else if (a === 'hint' && Q.view === 'question' && (Q.hintsUsed || 0) < 2) act('listLetter');
     else if (a === 'reveal' && Q.view === 'question') act('answer');
@@ -498,7 +498,7 @@
     ['دول', ['geography', 'capitals', 'flags', 'landmarks']],
     ['تحدّي وتفكير', ['draw', 'jni', 'zoom', 'guess-image', 'charades', 'survey', 'letters', 'memory', 'riddles', 'lists']],
     ['إسلامي وأهل البيت', ['islamic', 'prophets', 'sira-ahlulbayt', 'imams', 'karbala', 'maraqid', 'ashab-ulama', 'fiqh-sistani', 'duas-ziyarat', 'latmiyat']],
-    ['كورة ورسوم', ['football', 'cartoons']],
+    ['كورة ورسوم وأنمي', ['football', 'cartoons', 'one-piece']],
     ['بنات', ['girls-world', 'beauty']],
   ];
   const closedGroups = new Set();
@@ -1102,6 +1102,7 @@
       const plain = `${title}\n${reals.map(([it], k) => `${k + 1}. ${it.text} (${it.value})`).join('\n')}${traps.length ? '\nفخوخ: ' + traps.map(([it]) => `${it.text} (${it.value})`).join('، ') : ''}`;
       const qr = secretQR(url || secretUrl(q.id));
       $('#qBody').innerHTML = `
+        <p class="q-text sm ls-title">${esc(title)}</p>
         <div class="ls-setup">
           <div class="qr-secret big"><div class="qr-code">${qr}</div><p class="${NET.ref ? 'ok' : ''}">${NET.on ? (NET.ref ? 'الحَكَم متصل ✓' : 'باركود الحَكَم') : 'باركود الحَكَم (القائمة)'}</p>${NET.room ? `<p class="room-code">الكود: <b>${NET.room}</b></p>${NET.roomTV ? '<p class="room-code sm">من تطبيق كلود: افتح اللعبة واضغط «انضم بكود»</p>' : ''}` : ''}</div>
           <div class="ls-right"><ol class="ls-steps">
@@ -1114,7 +1115,7 @@
           </ol>
           ${NET.on ? '' : '<p class="hint">بدون اتصال: الحَكَم يقول رقم الجواب، والمقدّم يضغط عليه بالشاشة ويختار الفريق.</p>'}</div>
         </div>`;
-      $('#qActions').innerHTML = (canSwap() ? `<button class="btn ghost" data-act="listSwap">${ico('redo')}غيّر السؤال</button>` : '') + `<button class="btn ans-btn" data-act="listStart">${ico('play')}ابدأ</button>`;
+      $('#qActions').innerHTML = (canSwap() ? `<button class="btn swap-btn" data-act="listSwap">${ico('redo')}السؤال صعب؟ غيّره</button>` : '') + `<button class="btn ans-btn" data-act="listStart">${ico('play')}ابدأ</button>`;
       pushList(); return;
     }
     const live = Q.view === 'question';
@@ -1128,6 +1129,7 @@
       ${!live ? (() => { const w = listWinners(); return `<p class="who-title sm">${!w.length ? 'محد جمع نقاط' : w.length === 1 ? `الأعلى: ${esc(G.teams[w[0]].name)}` : 'تعادل'}</p>`; })() : ''}`;
     if (live) {
       $('#qActions').innerHTML = `
+        ${canSwap() ? `<button class="btn swap-btn" data-act="listSwap">${ico('redo')}غيّر السؤال</button>` : ''}
         <button class="btn ghost" data-act="listPass">${ico('x')}غلط، الدور على ${esc(G.teams[(Q.listTurn + 1) % n].name)}</button>
         ${(Q.hintsUsed || 0) >= 2 ? '' : `<button class="btn ghost" data-act="listLetter" title="تلميحين بكل سؤال">💡 تلميح (${2 - (Q.hintsUsed || 0)})</button>`}
         <button class="btn ans-btn" data-act="answer">${ico('eye')}خلصنا، اكشف الباقي</button>`;
