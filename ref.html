@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#13213C">
+<meta name="robots" content="noindex">
+<title>تركّد — الحَكَم</title>
+<style>
+  :root{--ink:#13213C;--paper:#F6F1E7;--yellow:#FFC629;--green:#0E9467;--red:#B3261E;--t1:#2747D6;--t2:#E8492F;--t3:#0E9467;--t4:#7446D1}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,system-ui,"Segoe UI",Tahoma,sans-serif;background:var(--paper);color:var(--ink);min-height:100svh;padding:calc(10px + env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) calc(110px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
+  header{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .brand{font-weight:900;font-size:22px}.brand b{color:#E8492F}
+  .role{background:var(--ink);color:#fff;border-radius:999px;padding:2px 12px;font-weight:700;font-size:13px}
+  .dot{width:10px;height:10px;border-radius:50%;background:#E8492F;margin-inline-start:auto}.dot.on{background:var(--green)}
+  .scores{display:flex;gap:8px;margin-bottom:10px}
+  .sc{flex:1;border-radius:14px;padding:6px 10px;color:#fff;display:flex;justify-content:space-between;align-items:center;font-weight:800;border:3px solid transparent}
+  .sc.turn{border-color:var(--yellow);box-shadow:0 0 0 2px var(--ink)}
+  .sc b{font-size:20px;font-variant-numeric:tabular-nums}
+  .q{font-weight:800;font-size:19px;line-height:1.5;margin:4px 0 4px}
+  .help{color:#3A4A66;font-size:13px;margin:0 0 10px}
+  ol{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+  li{background:#fff;border:2px solid var(--ink);border-radius:14px;padding:8px 10px}
+  li.got{opacity:.5}
+  .row{display:flex;align-items:center;gap:8px}
+  .n{width:26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px;flex:none}
+  .a{font-weight:800;font-size:18px;flex:1;min-width:0}
+  .a small{display:block;font-weight:500;font-size:12px;color:#5D6F86}
+  .a small.on{color:var(--green);font-weight:700}
+  .val{font-weight:900;color:var(--green);font-size:15px;font-variant-numeric:tabular-nums}
+  .tag{color:#fff;border-radius:999px;padding:1px 10px;font-size:13px;font-weight:700}
+  .btns{display:flex;gap:6px;margin-top:6px}
+  .btns button{flex:1;min-height:42px;border:2px solid var(--ink);border-radius:10px;color:#fff;font:inherit;font-weight:800;font-size:15px}
+  .btns .undo{background:#fff;color:var(--ink);flex:0 0 auto;padding:0 14px}
+  li.trap{border-color:var(--red);background:#FCE3DE} li.trap .n{background:var(--red)} li.trap .val{color:var(--red)}
+  .traps-h{color:var(--red);margin:14px 0 8px;font-weight:900;font-size:16px}
+  .wait{text-align:center;margin-top:26vh;font-weight:700;color:#3A4A66;line-height:1.8}
+  .bar{position:fixed;inset:auto 0 0;background:var(--ink);padding:10px max(12px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));display:flex;gap:8px}
+  .bar button{flex:1;min-height:52px;border-radius:12px;border:0;font:inherit;font-weight:900;font-size:15px;color:var(--ink);background:#fff}
+  .bar .go{background:var(--green);color:#fff} .bar .no{background:#E8492F;color:#fff} .bar .hint{background:var(--yellow)}
+  .bar button:disabled{opacity:.35}
+  .bar[hidden]{display:none}
+</style>
+</head>
+<body>
+<header><span class="brand">تركّد<b>!</b></span><span class="role">الحَكَم</span><span class="dot" id="dot" title="الاتصال"></span></header>
+<main id="out"><p class="wait">جاري الاتصال بالتلفزيون…</p></main>
+<nav class="bar" id="bar" hidden></nav>
+<script src="mqtt.min.js"></script>
+<script>
+(function () {
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const tc = (i) => `var(--t${i + 1})`;
+  const out = document.getElementById('out'), bar = document.getElementById('bar'), dot = document.getElementById('dot');
+  const buzz = () => { try { navigator.vibrate && navigator.vibrate(20); } catch (e) {} };
+  const room = (location.hash || '').slice(1).replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  let send = () => {}, act = () => {};
+
+  // ---- الاتصال: أونلاين (GitHub) عن طريق MQTT، أو بالبيت عن طريق السيرفر المحلي
+  if (room && window.mqtt) {
+    const T = 'tirakkad-v1/' + room + '/';
+    const cl = mqtt.connect('wss://broker.emqx.io:8084/mqtt', { clientId: 'ref-' + room + '-' + Math.random().toString(36).slice(2, 7), clean: true, reconnectPeriod: 2000, connectTimeout: 8000 });
+    cl.on('connect', () => { dot.classList.add('on'); cl.subscribe(T + 'state'); cl.publish(T + 'hello', '{}'); });
+    cl.on('close', () => dot.classList.remove('on'));
+    cl.on('offline', () => dot.classList.remove('on'));
+    cl.on('message', (t, buf) => { try { const m = JSON.parse(buf.toString()); if (m.t === 'state') render(m); } catch (e) {} });
+    send = (i, team) => { cl.publish(T + 'ref', JSON.stringify({ i, team })); buzz(); };
+    act = (a) => { cl.publish(T + 'ref', JSON.stringify({ a })); buzz(); };
+    setTimeout(() => { if (!dot.classList.contains('on')) out.innerHTML = '<p class="wait">ما قدرت أتصل. تأكد إن النت شغال، وصوّر الباركود مرة ثانية.</p>'; }, 9000);
+  } else if (location.protocol.startsWith('http') && !room) {
+    const pid = 'ref-' + Math.random().toString(36).slice(2);
+    const es = new EventSource('/api/stream?role=phone&pid=' + encodeURIComponent(pid));
+    es.onopen = () => dot.classList.add('on');
+    es.onerror = () => dot.classList.remove('on');
+    es.onmessage = (e) => { const m = JSON.parse(e.data); if (m.t === 'state') render(m); };
+    send = (i, team) => { fetch('/api/ref', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pid, i, team }) }).catch(() => {}); buzz(); };
+    out.innerHTML = '<p class="wait">انتظر… أول ما يبدأ سؤال «اضمنها» أو «قول اللي ببالهم» على التلفزيون تطلع القائمة هني.</p>';
+  } else {
+    out.innerHTML = '<p class="wait">صوّر باركود الحَكَم اللي على شاشة اللعبة.</p>';
+  }
+
+  function render(s) {
+    const L = s && s.list;
+    if (!L) { bar.hidden = true; out.innerHTML = '<p class="wait">متصل بالتلفزيون ✓<br>أول ما يفتحون سؤال «اضمنها» أو «قول اللي ببالهم» تطلع القائمة هني.</p>'; return; }
+    const teams = L.teams || [], pts = L.pts || [], live = L.view === 'question', shown = L.shown || {};
+    const row = (it, i, n) => {
+      const by = L.revealed[i], got = by !== null && by !== undefined;
+      const hint = it.h ? `<small class="${shown[i] ? 'on' : ''}">${shown[i] ? '💡 انكشف التلميح: ' : '💡 '}${esc(it.h)}</small>` : '';
+      return `<li class="${got ? 'got' : ''} ${it.trap ? 'trap' : ''}"><div class="row"><span class="n">${it.trap ? '!' : n}</span><span class="a">${esc(it.t)}${hint}</span><span class="val">${it.v > 0 ? '+' : ''}${it.v}</span>${got ? `<span class="tag" style="background:${tc(by)}">${esc(teams[by])}</span>` : ''}</div>
+        ${live ? `<div class="btns">${got ? `<button class="undo" data-i="${i}" data-team="-1">تراجع</button>` : teams.map((t, k) => `<button style="background:${tc(k)}" data-i="${i}" data-team="${k}">${esc(t)}</button>`).join('')}</div>` : ''}</li>`;
+    };
+    let n = 0;
+    const reals = L.items.map((it, i) => it.trap ? '' : row(it, i, ++n)).join('');
+    const traps = L.items.map((it, i) => it.trap ? row(it, i, 0) : '').join('');
+    out.innerHTML = `
+      <div class="scores">${teams.map((t, k) => `<div class="sc ${L.started && live && L.turn === k ? 'turn' : ''}" style="background:${tc(k)}"><span>${esc(t)}</span><b>${pts[k] || 0}</b></div>`).join('')}</div>
+      <p class="q">${esc(L.question)}</p>
+      <p class="help">${!live ? 'السؤال خلص. اضغط «احسبها» عشان تنحسب النقاط.' : !L.started ? 'اضغط «ابدأ» تحت، وبعدها الفرق تجاوب بالدور.' : `الدور على <b>${esc(teams[L.turn])}</b>. إذا قالوا جواب صح اضغط اسمهم تحته${L.survey ? '' : '، وإذا قالوا فخ اضغط اسمهم تحت الفخ'}. وإذا غلط اضغط «غلط».`}</p>
+      <ol>${reals}</ol>
+      ${traps ? `<h3 class="traps-h">الفخوخ</h3><ol>${traps}</ol>` : ''}`;
+    bar.hidden = false;
+    bar.innerHTML = !live ? '<button class="go" data-a="done">احسبها ✓</button>'
+      : !L.started ? '<button class="go" data-a="start">ابدأ ▶</button>'
+      : `<button class="no" data-a="pass">غلط ✗ الدور للثاني</button><button class="hint" data-a="hint" ${L.hintsLeft > 0 ? '' : 'disabled'}>💡 تلميح (${Math.max(0, L.hintsLeft)})</button><button data-a="reveal">اكشف الباقي</button>`;
+  }
+  out.addEventListener('click', (e) => { const b = e.target.closest('button[data-i]'); if (b) send(+b.dataset.i, +b.dataset.team); });
+  bar.addEventListener('click', (e) => { const b = e.target.closest('button[data-a]'); if (b) act(b.dataset.a); });
+})();
+</script>
+</body>
+</html>
