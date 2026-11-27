@@ -12,12 +12,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="base.css?v=1795776139">
-<link rel="stylesheet" href="app.css?v=1795776139">
-<link rel="stylesheet" href="theme-bright.css?v=1795776139">
-<link rel="stylesheet" href="theme-pro.css?v=1795776139">
-<link rel="stylesheet" href="game-ui.css?v=1795776139">
-<link rel="stylesheet" href="landing.css?v=1795776139">
+<link rel="stylesheet" href="base.css?v=1795779410">
+<link rel="stylesheet" href="app.css?v=1795779410">
+<link rel="stylesheet" href="theme-bright.css?v=1795779410">
+<link rel="stylesheet" href="theme-pro.css?v=1795779410">
+<link rel="stylesheet" href="game-ui.css?v=1795779410">
+<link rel="stylesheet" href="landing.css?v=1795779410">
 <script>document.documentElement.dataset.theme="pro"</script>
 </head>
 <body>
@@ -255,6 +255,7 @@
     <h2 id="winTitle"></h2>
     <div class="podium" id="podium"></div>
     <div class="row" style="justify-content:center">
+      <button class="btn xl wheel-btn" id="btnWheel">🎡 عقاب الخسران</button>
       <button class="btn xl" id="btnAgain"><svg class="i"><use href="#i-redo"/></svg>جولة ثانية</button>
       <button class="btn ghost" id="btnWinHome"><svg class="i"><use href="#i-home"/></svg>الرئيسية</button>
     </div>
@@ -264,6 +265,7 @@
 <!-- toasts (فوق كل الشاشات) -->
 <div class="toast ok" id="toastOk" aria-live="polite"><svg class="i"><use href="#i-check"/></svg><span id="toastOkTxt"></span></div>
 <div class="toast stamp-toast" id="toastNo" aria-hidden="true"><span class="stamp"><svg class="stamp-face" viewBox="0 0 32 32"><use href="#i-huff"/></svg>تركّد!</span></div>
+<div class="luck-hint" id="luckHint" hidden></div>
 <div class="turn-banner" id="turnBanner" aria-live="polite"></div>
 <div class="toast trap" id="toastTrap" aria-live="polite"><span class="trap-ic">!</span><span id="toastTrapTxt"></span></div>
 
@@ -305,14 +307,14 @@
   </div>
 </dialog>
 
-<script src="qrcode.min.js?v=1795776139"></script>
-<script src="mqtt.min.js?v=1795776139"></script>
-<script src="questions.js?v=1795776139"></script>
-<script src="extra.js?v=1795776139"></script>
-<script src="media.js?v=1795776139"></script>
-<script src="covers.js?v=1795776139"></script>
-<script src="art.js?v=1795776139"></script>
-<script src="categories-meta.js?v=1795776139"></script>
-<script src="app.js?v=1795776139"></script>
+<script src="qrcode.min.js?v=1795779410"></script>
+<script src="mqtt.min.js?v=1795779410"></script>
+<script src="questions.js?v=1795779410"></script>
+<script src="extra.js?v=1795779410"></script>
+<script src="media.js?v=1795779410"></script>
+<script src="covers.js?v=1795779410"></script>
+<script src="art.js?v=1795779410"></script>
+<script src="categories-meta.js?v=1795779410"></script>
+<script src="app.js?v=1795779410"></script>
 </body>
 </html>

@@ -496,7 +496,7 @@
     ['الكويت', ['kuwait', 'kuwait-malls', 'kuwait-logos', 'kuwait-products', 'proverbs', 'kuwaiti-series', 'food', 'restaurants']],
     ['عام', ['general-knowledge', 'yes-no', 'science', 'tech', 'history', 'cars', 'brands', 'logos', 'products']],
     ['دول', ['geography', 'capitals', 'flags', 'landmarks']],
-    ['تحدّي وتفكير', ['draw', 'jni', 'zoom', 'guess-image', 'charades', 'survey', 'letters', 'memory', 'riddles', 'lists']],
+    ['تحدّي وتفكير', ['draw', 'sounds', 'jni', 'zoom', 'guess-image', 'charades', 'survey', 'letters', 'memory', 'riddles', 'lists']],
     ['إسلامي وأهل البيت', ['islamic', 'prophets', 'sira-ahlulbayt', 'imams', 'karbala', 'maraqid', 'ashab-ulama', 'fiqh-sistani', 'duas-ziyarat', 'latmiyat']],
     ['كورة ورسوم وأنمي', ['football', 'cartoons', 'one-piece']],
     ['بنات', ['girls-world', 'beauty']],
@@ -568,10 +568,10 @@
   });
   $('#btnRandCats').addEventListener('click', () => { setup.cats = randomCats(); renderCatPick(); sfx.reveal(); });
 
-  const KIND = { trivia: 'سؤال وجواب', charades: 'ولا كلمة (تمثيل)', survey: 'قول اللي ببالهم', letters: 'سؤال وتلميح أول حرف', draw: 'رسم: واحد يشوف الكلمة بالباركود ويرسمها', jni: 'كلمة (جماد، نبات، إنسان…) وبعض حروفها مكشوفة', zoom: 'صورة مقرّبة تبعد شوي شوي. صاحب الدور عنده 15/25/30 ثانية، وبعدها الفريق الثاني 5 ثواني', guess: 'صورة ترمز لمثل أو كلمة، وانتوا تعرفونه', memory: 'مشهد يطلع ١٠ ثواني ويختفي، وبعده سؤال عن تفاصيله', list: 'قائمة أجوبة، والحَكَم معاه الكود' };
+  const KIND = { trivia: 'سؤال وجواب', charades: 'ولا كلمة (تمثيل)', survey: 'قول اللي ببالهم', letters: 'سؤال وتلميح أول حرف', draw: 'رسم: واحد يشوف الكلمة بالباركود ويرسمها', jni: 'كلمة (جماد، نبات، إنسان…) وبعض حروفها مكشوفة', zoom: 'صورة مقرّبة تبعد شوي شوي. صاحب الدور عنده 15/25/30 ثانية، وبعدها الفريق الثاني 5 ثواني', guess: 'صورة ترمز لمثل أو كلمة، وانتوا تعرفونه', sound: 'صوت يبدأ مكتوم ويتوضح شوي شوي، وانتوا تعرفون شنو هو', memory: 'مشهد يطلع ١٠ ثواني ويختفي، وبعده سؤال عن تفاصيله', list: 'قائمة أجوبة، والحَكَم معاه الكود' };
   function openCatPreview(id) {
     const c = catById[id]; if (!c) return;
-    const kind = ['draw', 'jni', 'zoom', 'guess'].includes(c.type) ? KIND[c.type] : c.questions.some((x) => x.image) ? 'سؤال بصورة' : c.questions.some((x) => x.emoji) ? 'خمّن من الإيموجي' : KIND[c.type || 'trivia'];
+    const kind = ['draw', 'jni', 'zoom', 'guess', 'sound'].includes(c.type) ? KIND[c.type] : c.questions.some((x) => x.image) ? 'سؤال بصورة' : c.questions.some((x) => x.emoji) ? 'خمّن من الإيموجي' : KIND[c.type || 'trivia'];
     const samples = c.type === 'memory'
       ? '<li><span>تطلع لكم قائمة أو مشهد ١٠ ثواني، وبعدها يختفي وتنسألون عن تفصيلة فيه.</span></li>'
       : [200, 400, 600].map((pts) => {
@@ -677,7 +677,7 @@
       });
       return { cid, tiles };
     });
-    G = { teams, board, turn: 0, strike: null, ver: BANK.version };
+    G = { teams, board, turn: 0, strike: null, ver: BANK.version, luck: teams.map(() => null), luckArm: null };
     board.forEach((col) => col.tiles.forEach((t) => seen.add(t.qid))); saveSeen(); // اللي طلع باللوحة ما يرجع باللعبة الجاية
     cloud.played(setup.cats); cloud.useGame();
     save(); renderBoard(); show('scr-board'); turnBanner();
@@ -709,6 +709,7 @@
     btn.classList.add('armed'); btn.textContent = 'متأكدين؟ اضغطوا مرة ثانية';
     endArmed = setTimeout(() => { endArmed = null; btn.classList.remove('armed'); btn.innerHTML = btn.dataset.html; }, 3500);
   });
+  $('#btnWheel').addEventListener('click', openWheel);
   $('#btnWinHome').addEventListener('click', () => { clearSave(); G = null; goHome(); });
   $('#btnAgain').addEventListener('click', () => { if (!canPlay()) return; clearSave(); newGame(); });
 
@@ -717,7 +718,9 @@
   function tileBtn(t, ci, ti, cat) {
     if (t.by !== null) return `<button class="tile6 used" disabled aria-label="${esc(cat.name)} ${t.pts} — انلعب"><span class="num">${t.pts}</span></button>`;
     const lbl = cat.type === 'survey' ? itemTotal(qById[t.qid], cat.type) : t.pts;
-    return `<button class="tile6 num" data-c="${ci}" data-t="${ti}" aria-label="${esc(cat.name)} ${lbl}">${lbl}</button>`;
+    const res = t.res !== undefined && t.res !== null && G.teams[t.res];
+    const arm = G.luckArm !== undefined && G.luckArm !== null;
+    return `<button class="tile6 num${res ? ' res' : ''}${arm && !res ? ' arm' : ''}" data-c="${ci}" data-t="${ti}" ${res ? `style="--t:var(--team-${t.res + 1})" title="محجوز لـ ${esc(G.teams[t.res].name)}"` : ''} aria-label="${esc(cat.name)} ${lbl}${res ? ' — محجوز' : ''}">${lbl}${res ? '<i class="res-pin">🎯</i>' : ''}</button>`;
   }
   function renderBoard() {
     $('#board').innerHTML = G.board.map((col, ci) => {
@@ -749,6 +752,22 @@
     const usable = st && ((where === 'board' && k === 'strike' && i === G.turn) || (where === 'q' && k !== 'strike' && Q && Q.view === 'question' && !Q.sceneOpen && (k !== 'options' || (Q.type === 'trivia' && Q.q.options && !Q.showOpts))));
     return `<button class="hicon ${st ? '' : 'used'} ${armed ? 'armed' : ''} ${usable ? 'usable' : ''}" ${usable ? '' : 'aria-disabled="true"'} data-team="${i}" data-help="${k}" title="${esc(HELPS[k].name)}: ${esc(HELPS[k].tip)}">${ico(HELPS[k].icon)}<span>${HELPS[k].name}</span></button>`;
   }
+  // ---------- «ضربة الحظ»: كل فريق مرة وحدة يحجز مربع؛ إذا الفريق صاحب الدور غلط فيه، نقاطه للي حجزه ----------
+  function luckBtn(i) {
+    if (!G || G.teams.length < 2) return '';
+    G.luck = G.luck || G.teams.map(() => null);
+    const st = G.luck[i];
+    if (st === 'used' || st === 'set') return `<span class="luck-chip off" title="${st === 'set' ? 'محجوز' : 'انستخدمت'}">🎯</span>`;
+    return `<button class="luck-chip${G.luckArm === i ? ' on' : ''}" data-luck="${i}" title="ضربة الحظ: احجزوا مربع">🎯 ضربة الحظ</button>`;
+  }
+  function luckHint() {
+    const h = $('#luckHint');
+    if (G && G.luckArm !== undefined && G.luckArm !== null) {
+      const t = G.teams[G.luckArm];
+      h.innerHTML = `🎯 <b>${esc(t.name)}</b>: اختاروا مربع تحجزونه. إذا فريق ثاني فتحه وما جاوب صح، نقاطه لكم! <button class="btn ghost sm" data-luck-cancel>إلغاء</button>`;
+      h.style.setProperty('--t', `var(--team-${G.luckArm + 1})`); h.hidden = false;
+    } else h.hidden = true;
+  }
   function renderTeambar() {
     $('#teambar').style.setProperty('--n', G.teams.length);
     $('#teambar').innerHTML = G.teams.map((t, i) => `
@@ -759,11 +778,13 @@
           <span class="num">${t.score}</span>
           <button class="pm" data-pm="${i}" data-d="100" aria-label="زايد ١٠٠">+</button>
         </div>
-        <div class="tc-helps">${HELP_KEYS.map((k) => helpIcon(t, i, k, 'board')).join('')}</div>
+        <div class="tc-helps">${HELP_KEYS.map((k) => helpIcon(t, i, k, 'board')).join('')}${luckBtn(i)}</div>
         ${G.strike === i ? '<div class="armed-note">الحفرة شغّالة على السؤال الجاي</div>' : ''}
       </div>`).join('');
   }
   $('#teambar').addEventListener('click', (e) => {
+    const lk = e.target.closest('[data-luck]');
+    if (lk) { const i = +lk.dataset.luck; G.luckArm = G.luckArm === i ? null : i; sfx.power(); renderBoard(); luckHint(); return; }
     const pm = e.target.closest('[data-pm]');
     if (pm) { const i = +pm.dataset.pm; G.teams[i].score += +pm.dataset.d; save(); renderTeambar(); pushList(); return; }
     const h = e.target.closest('.hicon');
@@ -779,6 +800,10 @@
     const b = e.target.closest('.tile6[data-c]'); if (!b || fxBusy) return;
     const ci = +b.dataset.c, ti = +b.dataset.t, tile = G.board[ci] && G.board[ci].tiles[ti];
     if (!tile || tile.by !== null) return;
+    if (G.luckArm !== undefined && G.luckArm !== null) { // وضع الحجز
+      if (tile.res !== undefined && tile.res !== null) return;
+      tile.res = G.luckArm; G.luck[G.luckArm] = 'set'; G.luckArm = null; save(); sfx.ok(); renderBoard(); luckHint(); return;
+    }
     openFx(b, qById[tile.qid], tile.pts, () => openQuestion(ci, ti));
   });
 
@@ -873,7 +898,7 @@
     if (!tile || tile.by !== null) return;
     const q = qById[tile.qid];
     const variant = q.cat.type || 'trivia';
-    const type = ['letters', 'memory', 'jni', 'zoom', 'guess'].includes(variant) ? 'trivia' : variant === 'survey' ? 'list' : variant === 'draw' ? 'charades' : variant;
+    const type = ['letters', 'memory', 'jni', 'zoom', 'guess', 'sound'].includes(variant) ? 'trivia' : variant === 'survey' ? 'list' : variant === 'draw' ? 'charades' : variant;
     Q = { ci, ti, q, type, variant, pts: tile.pts, view: 'question', done: false, flags: [], opened: new Set(), strikes: 0, counts: G.teams.map(() => 0), listTurn: G.turn, sceneOpen: variant === 'memory' && !!(q.scene || q.video), charadeStarted: false,
       items: type === 'list' ? buildItems(q, variant) : [], revealed: [], listStarted: false, letters: {}, letterUsed: false, pickSlot: null };
     Q.revealed = Q.items.map(() => null);
@@ -943,6 +968,65 @@
     const cells = [...String(q.pattern)].map((ch) => ch === ' ' ? '<span class="jc gap"></span>' : `<span class="jc ${ch === '_' ? '' : 'on'}">${ch === '_' ? '' : esc(ch)}</span>`).join('');
     return `<div class="jni"><span class="jni-kind">${esc(q.kind || '')}</span><div class="jni-cells">${cells}</div></div>`;
   }
+  // ---------- «الصوت المخفي»: الصوت يبدأ مكتوم (فلتر يقص الترددات العالية) ويتوضح مع الوقت ----------
+  const SND_SEC = { 200: 8, 400: 14, 600: 20 }; // كم ثانية لين يصير الصوت واضح
+  const SND = { el: null, ctx: null, filter: null, raf: 0 };
+  function soundBox() {
+    const on = !!(SND.el && !SND.el.paused);
+    return `<div class="snd-box${on ? ' on' : ''}">
+      <button class="snd-btn" data-act="sndPlay" aria-label="${on ? 'وقّف الصوت' : 'شغّل الصوت'}">${on ? '❚❚' : '▶'}</button>
+      <div class="snd-bars" aria-hidden="true">${'<i></i>'.repeat(14)}</div>
+      <div class="snd-meter"><span>الوضوح</span><div class="snd-track"><b id="sndFill"></b></div></div>
+      ${Q.sndT0 ? '' : '<p class="snd-hint">اضغطوا ▶ ويبدأ الصوت مكتوم… وكل ما مر الوقت يتوضح</p>'}
+    </div>`;
+  }
+  function sndChain() {
+    if (SND.el) return;
+    const el = new Audio(); el.loop = true; el.preload = 'auto'; el.crossOrigin = 'anonymous'; SND.el = el;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      const src = actx.createMediaElementSource(el), f = actx.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 0.7; f.frequency.value = 300;
+      src.connect(f).connect(actx.destination); SND.filter = f;
+    } catch (e) { SND.filter = null; }
+  }
+  function sndClarity() { // 0..1
+    if (!Q || Q.variant !== 'sound') return 1;
+    if (Q.sndClear || Q.view !== 'question') return 1;
+    if (!Q.sndT0) return 0;
+    return Math.min(1, (Date.now() - Q.sndT0) / 1000 / (SND_SEC[Q.pts] || 12));
+  }
+  function paintSound2() {
+    cancelAnimationFrame(SND.raf);
+    const step = () => {
+      if (!Q || Q.variant !== 'sound') return;
+      const c = sndClarity(), hz = 280 * Math.pow(18000 / 280, c);
+      if (SND.filter) SND.filter.frequency.setTargetAtTime(hz, actx.currentTime, 0.05);
+      const fill = document.getElementById('sndFill'); if (fill) fill.style.width = Math.round(c * 100) + '%';
+      if (SND.el && !SND.el.paused) SND.raf = requestAnimationFrame(step);
+    };
+    step();
+  }
+  function soundToggle() {
+    const q = Q && Q.q; if (!q || !q.audio) return;
+    sndChain();
+    try { actx && actx.resume && actx.resume(); } catch (e) {}
+    const src = media(q.audio);
+    if (SND.el.getAttribute('data-q') !== q.id) { SND.el.src = src; SND.el.setAttribute('data-q', q.id); }
+    if (SND.el.paused) {
+      if (!Q.sndT0) Q.sndT0 = Date.now();
+      SND.el.play().then(() => { renderView(); }).catch(() => {});
+    } else { SND.el.pause(); renderView(); }
+  }
+  function soundPlayClear() {
+    const q = Q && Q.q; if (!q || !q.audio) return;
+    sndChain();
+    try { actx && actx.resume && actx.resume(); } catch (e) {}
+    if (SND.filter) SND.filter.frequency.setTargetAtTime(18000, actx.currentTime, 0.02);
+    if (SND.el.getAttribute('data-q') !== q.id) { SND.el.src = media(q.audio); SND.el.setAttribute('data-q', q.id); }
+    SND.el.currentTime = 0; SND.el.loop = false; SND.el.play().catch(() => {});
+  }
+  function stopSound() { if (SND.el) { SND.el.pause(); SND.el.loop = true; } cancelAnimationFrame(SND.raf); }
+
   // زووم — القانون: الفريق اللي اختار السؤال عنده 15/25/30 ثانية (200/400/600)،
   // وإذا خلص الوقت السؤال يروح للفريق الثاني وعندهم 5 ثواني بس
   const ZOOM_SEC = { 200: 15, 400: 25, 600: 30 };
@@ -1000,17 +1084,20 @@
         ${q.emoji ? `<div class="q-emoji">${esc(q.emoji)}</div>` : ''}
         <p class="q-text">${esc(q.question)}</p>
         ${Q.variant === 'jni' && q.pattern ? jniBoard(q) : ''}
+        ${Q.variant === 'sound' && q.audio ? soundBox() : ''}
         ${q.image && Q.variant === 'zoom' ? zoomFig(q) : q.image ? `<figure class="q-img${Q.variant === 'guess' ? ' big' : ''}"><img src="${esc(media(q.image))}" alt="صورة السؤال" referrerpolicy="no-referrer" onerror="this.closest('figure').classList.add('broken')"></figure>` : ''}
         ${Q.variant === 'letters' && q.letter ? letterBoard(q.letter, q.answer) : ''}
         ${Q.showOpts && q.options ? `<div class="opts4">${q.options.map((o, k) => `<div class="opt4"><span class="num">${k + 1}</span>${esc(o)}</div>`).join('')}</div>` : ''}`;
       if (Q.variant === 'zoom') requestAnimationFrame(runZoom);
-      $('#qActions').innerHTML = (Q.variant === 'zoom' && !Q.zoomAll ? `<button class="btn ghost" data-act="zoomAll">${ico('eye')}طلّع الصورة كاملة</button>` : '') + `<button class="btn ans-btn" data-act="answer">${ico('eye')}الإجابة</button>`;
+      if (Q.variant === 'sound') requestAnimationFrame(paintSound2);
+      $('#qActions').innerHTML = (Q.variant === 'sound' && Q.sndT0 && !Q.sndClear ? `<button class="btn ghost" data-act="sndClear">${ico('eye')}خل الصوت واضح</button>` : '') + (Q.variant === 'zoom' && !Q.zoomAll ? `<button class="btn ghost" data-act="zoomAll">${ico('eye')}طلّع الصورة كاملة</button>` : '') + `<button class="btn ans-btn" data-act="answer">${ico('eye')}الإجابة</button>`;
     } else if (Q.view === 'answer') {
       $('#qBody').innerHTML = `
         <div class="ans">
           <p class="ans-lbl">الجواب</p>
           <p class="ans-text">${esc(q.answer)}</p>
           ${q.image ? `<figure class="q-img small"><img src="${esc(media(q.image))}" alt="" referrerpolicy="no-referrer"><figcaption>${esc(q.image_credit || '')}</figcaption></figure>` : ''}
+          ${Q.variant === 'sound' && q.audio ? `<button class="btn snd-replay" data-act="sndReplay">🔊 اسمعوه واضح</button><p class="q-credit">${esc(q.audio_credit || '')}</p>` : ''}
           ${q.note ? `<p class="q-note">${esc(q.note)}</p>` : ''}
           ${Q.showOpts && q.options ? `<div class="opts4 small">${q.options.map((o, k) => `<div class="opt4 ${o === q.correct_option ? 'ok' : 'no'}"><span class="num">${k + 1}</span>${esc(o)}</div>`).join('')}</div>` : ''}
         </div>`;
@@ -1217,12 +1304,15 @@
   function act(name) {
     if (!Q || Q.done) return;
     switch (name) {
-      case 'answer': if (Q.sceneOpen) return; stopClock(); Q.view = 'answer'; sfx.reveal(); renderView(); break;
+      case 'answer': if (Q.sceneOpen) return; stopSound(); stopClock(); Q.view = 'answer'; sfx.reveal(); renderView(); break;
       case 'toQuestion': Q.view = 'question'; renderView(); break;
       case 'who': Q.view = 'who'; renderView(); break;
       case 'toAnswer': Q.view = 'answer'; renderView(); break;
       case 'hideScene': hideScene(); break;
       case 'zoomAll': Q.zoomAll = true; renderView(); break;
+      case 'sndPlay': soundToggle(); break;
+      case 'sndClear': Q.sndClear = true; renderView(); break;
+      case 'sndReplay': soundPlayClear(); break;
       case 'startCharade': if (!Q.charadeStarted) { Q.charadeStarted = true; startClock(); renderView(); } break;
       case 'peek': { const c = $('#charade'); if (c) { c.classList.add('open'); const q0 = Q; later(() => { const el = $('#charade'); if (Q === q0 && el) el.classList.remove('open'); }, 4000); } break; }
       case 'strike': Q.strikes = Math.min(3, Q.strikes + 1); sfx.no(); if (Q.strikes >= 3) toast('toastNo'); renderView(); break;
@@ -1252,7 +1342,7 @@
     G.strike = null;
   }
   function finish(tileBy, parts, good) {
-    Q.done = true;
+    Q.done = true; stopSound();
     stopClock(); cancelPending();
     G.board[Q.ci].tiles[Q.ti].by = tileBy;
     G.turn = (G.turn + 1) % G.teams.length;
@@ -1268,6 +1358,13 @@
     const parts = [], won = i >= 0 && pts > 0;
     if (won) { G.teams[i].score += pts; parts.push(`${G.teams[i].name} +${pts}`); }
     applyStrike(i, pts, parts);
+    // ضربة الحظ: المربع محجوز لفريق ثاني، وصاحب الدور ما جاوب صح
+    const tl = G.board[Q.ci].tiles[Q.ti], r = tl.res;
+    if (r !== undefined && r !== null && G.teams[r] && r !== G.turn && i !== G.turn && i !== r && pts > 0) {
+      G.teams[r].score += pts; G.luck[r] = 'used';
+      finish(r, parts, true); const to = $('#toastOk'); to.classList.add('luck'); setTimeout(() => to.classList.remove('luck'), 2400); toast('toastOk', `🎯 ضربة حظ! +${pts} لـ ${G.teams[r].name}`); return;
+    }
+    if (r !== undefined && r !== null && G.luck) G.luck[r] = 'used';
     finish(won ? i : -1, parts, won);
   }
   function awardList() {
@@ -1282,16 +1379,82 @@
 
   $('#btnBack').addEventListener('click', () => {
     if (!Q || Q.view !== 'question') return; // بعد كشف الإجابة ما فيه رجوع
-    stopClock(); cancelPending(); Q = null; pushList(); renderBoard(); show('scr-board');
+    stopSound(); stopClock(); cancelPending(); Q = null; pushList(); renderBoard(); show('scr-board');
   });
 
   // المسافة = الخطوة الجاية
+  document.addEventListener('click', (e) => { if (e.target.closest('[data-luck-cancel]')) { G.luckArm = null; renderBoard(); luckHint(); } });
   document.addEventListener('keydown', (e) => {
     if (e.code !== 'Space' || e.repeat || $('#scr-q').hidden || e.target.matches('input,textarea') || !Q) return;
     e.preventDefault();
     const b = $('#qActions .ans-btn') || $('#qActions .who-btn') || $('#qActions [data-act="hideScene"]');
     if (b) b.click();
   });
+
+  /* =================== عجلة عقاب الخسران =================== */
+  const PUNISH = [
+    ['صوت حيوان', 'قلّدوا صوت حيوان يختاره الفريق الفايز، ولازم يعرفونه'],
+    ['إعلان تلفزيوني', 'سوّوا إعلان تلفزيوني ٣٠ ثانية لأي شي موجود بالمكان'],
+    ['لهجة مصرية', 'تكلّموا باللهجة المصرية لين الجولة الجاية'],
+    ['قلّد واحد', 'قلّدوا واحد من الجالسين، والباقين يحزرون منو'],
+    ['مشية عارض', 'امشوا مشية عارض أزياء رايح جاي قدام الكل'],
+    ['مذيع أخبار', 'قدّموا نشرة أخبار عاجلة عن شي صار اليوم بالديوانية'],
+    ['شاعر مدّاح', 'قولوا ٣ أبيات مدح (من تأليفكم) للفريق الفايز'],
+    ['لا تضحك!', 'دقيقة كاملة بدون ضحك، والفايزين يحاولون يضحكونكم'],
+    ['١٠ أكلات', 'اذكروا ١٠ أكلات كويتية بـ ٣٠ ثانية، وإذا ما قدرتوا: عقاب ثاني'],
+    ['القهوة عليكم', 'الفريق الخسران يقهوي ويضيّف الكل'],
+    ['مشهد مسلسل', 'مثّلوا مشهد مشهور من مسلسل كويتي، والكل يحزر'],
+    ['فصحى بس', 'تتكلمون بالفصحى بس لين نهاية الجولة الجاية'],
+    ['اسمك بالعكس', 'كل واحد يقول اسمه بالعكس ٣ مرات بسرعة'],
+    ['مقابلة صحفية', 'واحد منكم يسوي مقابلة مع الفايز كأنه نجم عالمي'],
+  ];
+  const WHEEL_COLORS = ['#E8492F', '#2747D6', '#0E9467', '#F2A900', '#7446D1', '#E0457B', '#1FA3B8'];
+  function openWheel() {
+    if (!G) return;
+    const low = Math.min(...G.teams.map((t) => t.score)), losers = G.teams.filter((t) => t.score === low).map((t) => t.name);
+    let box = document.getElementById('wheelBox');
+    if (!box) { box = document.createElement('div'); box.id = 'wheelBox'; box.dir = 'rtl'; document.body.appendChild(box); }
+    box.innerHTML = `<div class="wh-card">
+      <p class="wh-kicker">عقاب الخسران</p>
+      <h2>${losers.map(esc).join(' و')}</h2>
+      <div class="wh-wrap"><div class="wh-pin"></div><canvas id="wheelCv" width="640" height="640"></canvas></div>
+      <p class="wh-res" id="wheelRes">اضغطوا «دوّر» وشوفوا حظكم 😅</p>
+      <div class="wh-row"><button class="btn xl" id="wheelSpin">🎡 دوّر</button><button class="btn ghost" id="wheelClose">سكّر</button></div></div>`;
+    box.hidden = false;
+    const cv = $('#wheelCv'), ctx = cv.getContext('2d'), N = PUNISH.length, R = 310;
+    let ang = 0, spinning = false;
+    function draw() {
+      ctx.clearRect(0, 0, 640, 640); ctx.save(); ctx.translate(320, 320); ctx.rotate(ang);
+      for (let k = 0; k < N; k++) {
+        const a0 = (k / N) * Math.PI * 2, a1 = ((k + 1) / N) * Math.PI * 2;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, R, a0, a1); ctx.closePath();
+        ctx.fillStyle = WHEEL_COLORS[k % WHEEL_COLORS.length]; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.stroke();
+        ctx.save(); ctx.rotate((a0 + a1) / 2); ctx.textAlign = 'right'; ctx.fillStyle = '#fff'; ctx.font = '900 26px system-ui, sans-serif';
+        ctx.fillText(PUNISH[k][0], R - 22, 9); ctx.restore();
+      }
+      ctx.beginPath(); ctx.arc(0, 0, 46, 0, Math.PI * 2); ctx.fillStyle = '#13213C'; ctx.fill(); ctx.strokeStyle = '#FFC629'; ctx.lineWidth = 6; ctx.stroke();
+      ctx.restore();
+    }
+    draw();
+    $('#wheelSpin').onclick = () => {
+      if (spinning) return; spinning = true; $('#wheelRes').textContent = '…';
+      const pick = Math.floor(Math.random() * N);
+      // المؤشر فوق (‑90°): نوقف بحيث نص الشريحة pick تحت المؤشر
+      const target = -Math.PI / 2 - ((pick + 0.5) / N) * Math.PI * 2;
+      const start = ang, end = target - Math.ceil((start - target) / (Math.PI * 2)) * Math.PI * 2 - Math.PI * 2 * 6;
+      const t0 = performance.now(), dur = 4200; let lastTick = 0;
+      const ease = (x) => 1 - Math.pow(1 - x, 4);
+      const step = (now) => {
+        const p = Math.min(1, (now - t0) / dur); ang = start + (end - start) * ease(p); draw();
+        const seg = Math.floor(((-ang - Math.PI / 2) / (Math.PI * 2 / N)) % N);
+        if (seg !== lastTick) { lastTick = seg; sfx.tick(); }
+        if (p < 1) requestAnimationFrame(step);
+        else { spinning = false; sfx.ok(); const res = $('#wheelRes'); res.innerHTML = `<b>${esc(PUNISH[pick][0])}</b><br>${esc(PUNISH[pick][1])}`; res.classList.remove('pop'); void res.offsetWidth; res.classList.add('pop'); }
+      };
+      requestAnimationFrame(step);
+    };
+    $('#wheelClose').onclick = () => { box.hidden = true; };
+  }
 
   /* =================== WINNER =================== */
   function showWinner() {
