@@ -339,3 +339,31 @@ html.tv-idle,html.tv-idle *{cursor:none !important}
 /* «غيّر السؤال» */
 .swap-btn{background:var(--yellow) !important;color:var(--ink) !important;border-color:var(--ink) !important;font-weight:900}
 .ls-title{margin:0 0 var(--space-3);text-align:center}
+
+/* حركة فتح السؤال */
+.qfx-dim{position:fixed;inset:0;z-index:150;background:radial-gradient(circle at 50% 50%,rgb(10 20 40 / .55),rgb(5 10 22 / .88));pointer-events:none}
+.qfx{position:fixed;z-index:151;perspective:1400px;pointer-events:none;will-change:transform}
+.qfx-in{position:relative;width:100%;height:100%;transform-style:preserve-3d}
+.qfx-face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:calc(28 * var(--u));overflow:hidden;border:calc(6 * var(--u)) solid #fff;box-shadow:0 calc(24 * var(--u)) calc(60 * var(--u)) rgb(0 0 0 / .5)}
+.qfx-front{display:grid;place-items:center;background:radial-gradient(circle at 50% 35%,color-mix(in srgb,var(--cc) 60%,#fff),var(--cc))}
+.qfx-front b{font-size:calc(120 * var(--u));font-weight:900;color:#fff;text-shadow:0 calc(6 * var(--u)) 0 rgb(0 0 0 / .25)}
+.qfx-back{transform:rotateY(180deg);background:var(--cc);display:grid;grid-template-rows:1fr auto}
+.qfx-back img{width:100%;height:100%;object-fit:cover;min-height:0}
+.qfx-meta{display:flex;align-items:center;justify-content:space-between;gap:calc(12 * var(--u));padding:calc(12 * var(--u)) calc(22 * var(--u));background:var(--cc);color:#fff}
+.qfx-meta span{font-size:calc(34 * var(--u));font-weight:900}
+.qfx-meta b{font-size:calc(40 * var(--u));font-weight:900;background:#fff;color:var(--cc);border-radius:999px;padding:0 calc(16 * var(--u))}
+.qstage.q-enter{animation:qIn .5s cubic-bezier(.2,.9,.25,1.15) both}
+.qstage.q-enter .qtop > *{animation:qPop .45s cubic-bezier(.2,.9,.25,1.3) both}
+.qstage.q-enter .qtop > *:nth-child(1){animation-delay:.08s}
+.qstage.q-enter .qtop > *:nth-child(2){animation-delay:.16s}
+.qstage.q-enter .qtop > *:nth-child(3){animation-delay:.24s}
+.qstage.q-enter #qBody > *{animation:qUp .55s cubic-bezier(.2,.9,.25,1) both}
+.qstage.q-enter #qBody > *:nth-child(1){animation-delay:.22s}
+.qstage.q-enter #qBody > *:nth-child(2){animation-delay:.34s}
+.qstage.q-enter #qBody > *:nth-child(3){animation-delay:.46s}
+.qstage.q-enter #qBody > *:nth-child(n+4){animation-delay:.58s}
+.qstage.q-enter #qActions{animation:qUp .5s .6s cubic-bezier(.2,.9,.25,1) both}
+@keyframes qIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
+@keyframes qPop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
+@keyframes qUp{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.qstage.q-enter,.qstage.q-enter *{animation:none !important}}

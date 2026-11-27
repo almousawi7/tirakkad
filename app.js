@@ -776,8 +776,68 @@
     }
   });
   $('#board').addEventListener('click', (e) => {
-    const b = e.target.closest('.tile6[data-c]'); if (b) openQuestion(+b.dataset.c, +b.dataset.t);
+    const b = e.target.closest('.tile6[data-c]'); if (!b || fxBusy) return;
+    const ci = +b.dataset.c, ti = +b.dataset.t, tile = G.board[ci] && G.board[ci].tiles[ti];
+    if (!tile || tile.by !== null) return;
+    openFx(b, qById[tile.qid], tile.pts, () => openQuestion(ci, ti));
   });
+
+  // ---------- حركة فتح السؤال (مثل برامج المسابقات) ----------
+  let fxBusy = false;
+  const COVER_SET = new Set(window.TIRAKKAD_COVERS || []);
+  function swoosh() { // صوت «ووش» قصير صاعد
+    if (!soundOn) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      const t = actx.currentTime, o = actx.createOscillator(), gn = actx.createGain();
+      o.type = 'triangle'; o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(880, t + 0.35);
+      gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(0.12, t + 0.08); gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+      o.connect(gn).connect(actx.destination); o.start(t); o.stop(t + 0.42);
+    } catch (e) {}
+  }
+  function openFx(tileEl, q, pts, done) {
+    const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || !tileEl || !q || !tileEl.animate) { done(); enterFx(); return; }
+    fxBusy = true;
+    const r = tileEl.getBoundingClientRect();
+    const sc = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--stage-s')) || 1;
+    const W = 520 * sc, H = 320 * sc, cx = innerWidth / 2, cy = innerHeight / 2;
+    const cover = COVER_SET.has(q.cat.id) ? `img/covers/${q.cat.id}.jpg` : '';
+    const dim = document.createElement('div'); dim.className = 'qfx-dim';
+    const card = document.createElement('div'); card.className = 'qfx'; card.dir = 'rtl';
+    card.style.cssText = `left:${cx - W / 2}px;top:${cy - H / 2}px;width:${W}px;height:${H}px;--cc:${catColor(q.cat.id)};--u:${sc}px`;
+    card.innerHTML = `<div class="qfx-in">
+        <div class="qfx-face qfx-front"><b class="num">${pts}</b></div>
+        <div class="qfx-face qfx-back">${cover ? `<img src="${esc(cover)}" alt="">` : ''}<div class="qfx-meta"><span>${esc(q.cat.name)}</span><b class="num">${pts}</b></div></div>
+      </div>`;
+    document.body.append(dim, card);
+    const from = `translate(${r.left + r.width / 2 - cx}px, ${r.top + r.height / 2 - cy}px) scale(${r.width / W}, ${r.height / H})`;
+    tileEl.style.visibility = 'hidden';
+    swoosh();
+    dim.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 380, fill: 'forwards' });
+    card.animate([
+      { transform: from, offset: 0 },
+      { transform: 'translate(0,0) scale(1.06)', offset: 0.42, easing: 'ease-out' },
+      { transform: 'translate(0,0) scale(1)', offset: 0.55 },
+      { transform: 'translate(0,0) scale(1)', offset: 1 },
+    ], { duration: 1150, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' });
+    card.querySelector('.qfx-in').animate([
+      { transform: 'rotateY(0deg)', offset: 0 }, { transform: 'rotateY(0deg)', offset: 0.38 },
+      { transform: 'rotateY(180deg)', offset: 0.75, easing: 'cubic-bezier(.3,1.4,.5,1)' }, { transform: 'rotateY(180deg)', offset: 1 },
+    ], { duration: 1150, fill: 'forwards' });
+    setTimeout(() => {
+      tileEl.style.visibility = '';
+      done(); enterFx();
+      card.animate([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(2.4)', opacity: 0 }], { duration: 420, easing: 'ease-in', fill: 'forwards' });
+      dim.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 420, fill: 'forwards' });
+      setTimeout(() => { card.remove(); dim.remove(); fxBusy = false; }, 440);
+    }, 1250);
+  }
+  function enterFx() { // أجزاء السؤال تدخل وحدة وحدة
+    const st = $('#qStage'); if (!st) return;
+    st.classList.remove('q-enter'); void st.offsetWidth; st.classList.add('q-enter');
+    clearTimeout(st._fx); st._fx = setTimeout(() => st.classList.remove('q-enter'), 1600);
+  }
 
   /* =================== CLOCK =================== */
   const C = { mode: 'up', sec: 0, total: 0, iv: null, running: false, onEnd: null };
