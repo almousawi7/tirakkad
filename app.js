@@ -893,6 +893,7 @@
   $('#clkReset').addEventListener('click', () => { C.sec = C.total; paintClock(); if (C.mode === 'up' || C.running) startClock(); });
 
   /* =================== QUESTION =================== */
+  const ALWAYS_OPTS = new Set(['minecraft', 'grade4', 'ali-shaker']);
   function openQuestion(ci, ti) {
     cancelPending();
     const tile = G.board[ci].tiles[ti];
@@ -903,6 +904,8 @@
     Q = { ci, ti, q, type, variant, pts: tile.pts, view: 'question', done: false, flags: [], opened: new Set(), strikes: 0, counts: G.teams.map(() => 0), listTurn: G.turn, sceneOpen: variant === 'memory' && !!(q.scene || q.video), charadeStarted: false,
       items: type === 'list' ? buildItems(q, variant) : [], revealed: [], listStarted: false, letters: {}, letterUsed: false, pickSlot: null };
     Q.revealed = Q.items.map(() => null);
+    // فئات الأطفال: الخيارات تطلع على طول مع كل سؤال
+    if (ALWAYS_OPTS.has(q.cat.id) && q.options) Q.showOpts = true;
     $('#qStage').style.setProperty('--cc', catColor(q.cat.id));
     $('#qVal').textContent = `${tile.pts} نقطة`;
     $('#qCat').textContent = q.cat.name;
