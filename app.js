@@ -499,6 +499,7 @@
     ['تحدّي وتفكير', ['draw', 'sounds', 'jni', 'zoom', 'guess-image', 'charades', 'survey', 'letters', 'memory', 'riddles', 'lists']],
     ['إسلامي وأهل البيت', ['islamic', 'prophets', 'sira-ahlulbayt', 'imams', 'karbala', 'maraqid', 'ashab-ulama', 'fiqh-sistani', 'duas-ziyarat', 'latmiyat']],
     ['كورة ورسوم وأنمي', ['football', 'cartoons', 'one-piece']],
+    ['أطفال (٨–١٠ سنوات)', ['minecraft', 'grade4', 'ali-shaker']],
     ['بنات', ['girls-world', 'beauty']],
   ];
   const closedGroups = new Set();
