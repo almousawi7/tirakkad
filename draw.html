@@ -41,16 +41,22 @@
 <div class="tools" id="tools"></div>
 <div class="act"><button class="undo" id="undo">↶ تراجع</button><button class="clear" id="clear">امسح الكل</button></div>
 <p class="msg" id="msg">الرسمة تطلع على التلفزيون وأنت ترسم.</p>
-<script src="secrets.js?v=1795781770"></script>
-<script src="mqtt.min.js?v=1795781770"></script>
+<script src="secrets.js?v=1795783949"></script>
+<script src="mqtt.min.js?v=1795783949"></script>
 <script>
 (function () {
   // الرابط: draw.html#<كود الغرفة>/<رقم السؤال>  أو  #<الكود>/w.<الكلمة base64url>
   const parts = (location.hash || '').slice(1).split('/'), room = (parts[0] || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase(), ref = parts.slice(1).join('/');
   const b64d = (s) => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; const bin = atob(s); return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))); };
   const LINK = window.TK_LINK; // داخل كلود
-  let word = LINK ? LINK.word : '', qid = LINK ? LINK.ref : ref;
-  if (!LINK) try { if (ref.startsWith('w.')) { word = b64d(ref.slice(2)); } else { const d = (window.S || {})[ref]; word = d ? d.w : ''; } } catch (e) {}
+  // ref = <رقم السؤال> أو <رقم السؤال>~<الكلمة base64> (للأسئلة اليومية) أو w.<الكلمة> (روابط قديمة)
+  const [refId, refWord] = ref.split('~');
+  let word = LINK ? LINK.word : '', qid = LINK ? LINK.ref : refId;
+  if (!LINK) try {
+    if (refWord) word = b64d(refWord);
+    else if (refId.startsWith('w.')) word = b64d(refId.slice(2));
+    else { const d = (window.S || {})[refId]; word = d ? d.w : ''; }
+  } catch (e) {}
   document.getElementById('w').textContent = word || '—';
   document.getElementById('hideW').onclick = (e) => { const w = document.getElementById('word'); w.classList.toggle('hidden'); e.target.textContent = w.classList.contains('hidden') ? 'اظهرها' : 'خبّها'; };
 

@@ -219,7 +219,7 @@
   // ---- «رسم» مباشر: الرسّام يرسم بجواله (draw.html) والرسمة تطلع على التلفزيون
   // الرسالة: {q: رقم السؤال, t:'s', id, c: اللون, w: السماكة, p: [[x,y],…] (0..1)} أو {t:'clear'} أو {t:'undo'}
   function onDraw(m) {
-    if (!Q || Q.variant !== 'draw' || Q.done || !m || m.q !== Q.q.id) return;
+    if (!Q || Q.variant !== 'draw' || Q.done || !m || (m.q !== Q.q.id && !String(m.q || '').startsWith('w.'))) return; // w.… = روابط قديمة
     Q.strokes = Q.strokes || [];
     if (m.t === 'clear') Q.strokes = [];
     else if (m.t === 'undo') Q.strokes.pop();
@@ -308,7 +308,7 @@
     if (m.a) { refAct(m.a); return; }
     onRef(+m.i, +m.team);
   }
-  const drawUrl = (q) => NET.roomTV ? `${ART_URL}#d-${NET.room}-${q.id}` : `${NET.base}draw.html#${NET.room}/${/^(ch|drw)-\d+-[a-z0-9]+$/.test(q.id) ? q.id : 'w.' + b64u(q.prompt)}`;
+  const drawUrl = (q) => NET.roomTV ? `${ART_URL}#d-${NET.room}-${q.id}` : `${NET.base}draw.html#${NET.room}/${q.id}${/^(ch|drw)-\d+-[a-z0-9]+$/.test(q.id) ? '' : '~' + b64u(q.prompt)}`;
   async function initNet() {
     if (initRelay()) return;
     if (await initRoomTV()) return;
